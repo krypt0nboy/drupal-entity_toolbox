@@ -1,0 +1,16 @@
+name = Entity toolbox
+description = "Automation functions for entities"
+core = 7.x
+version = 7.x-1.0-beta1
+
+dependencies[] = entity
+dependencies[] = views
+dependencies[] = views_ui
+dependencies[] = ctools
+dependencies[] = entityreference
+dependencies[] = inline_entity_form
+
+features[ctools][] = views:views_default:3.0
+features[features_api][] = api:2
+
+#Note : this module will be contributed to community.

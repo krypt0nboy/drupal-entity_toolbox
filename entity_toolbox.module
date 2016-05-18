@@ -1,0 +1,108 @@
+<?php
+
+define('ENTITY_TOOLBOX_PATH', drupal_get_path('module', 'entity_toolbox'));
+
+define('GET_FIELDABLE', 'fieldable');
+define('GET_NOT_FIELDABLE', 'not_fieldable');
+define('GET_ALL', 'all');
+
+/**
+ * Default constants for entity_toolbox_get_info().
+ */
+define('DEFAULT_AUTOCOMPLETE_CALLBACK', '');
+
+define('PROPERTY_REFERENCE_MULTIPLE_DEFAULT_FIELD_WIDGET', 'autocomplete');
+
+define('PROPERTY_DECIMAL_DEFAULT_FIELD_WIDGET', 'textfield');
+define('PROPERTY_DECIMAL_DEFAULT_PRECISION', 10);
+define('PROPERTY_DECIMAL_DEFAULT_SCALE', 2);
+define('PROPERTY_DECIMAL_DEFAULT_DEFAULT', 0);
+
+define('PROPERTY_INTEGER_DEFAULT_FIELD_WIDGET', 'textfield');
+define('PROPERTY_INTEGER_DEFAULT_SIZE', 'tiny');
+define('PROPERTY_INTEGER_DEFAULT_DEFAULT', 0);
+
+define('PROPERTY_FLOAT_DEFAULT_FIELD_WIDGET', 'texfield');
+define('PROPERTY_FLOAT_DEFAULT_SIZE', 'tiny');
+define('PROPERTY_FLOAT_DEFAULT_DEFAULT', 0);
+
+define('PROPERTY_TOKEN_DEFAULT_FIELD_WIDGET', 'machine_name');
+define('PROPERTY_TOKEN_DEFAULT_LENGTH', 255);
+
+define('PROPERTY_TEXT_DEFAULT_SIZE', 'small');
+define('PROPERTY_TEXT_FIELD_DEFAULT_LENGTH', 255);
+
+define('PROPERTY_TEXT_DEFAULT_FIELD_ROWS', 5);
+
+define('PROPERTY_BOOLEAN_DEFAULT_FIELD_WIDGET', 'checkbox');
+define('PROPERTY_BOOLEAN_DEFAULT_DEFAULT', 0);
+
+define('PROPERTY_SERIALIZED_DEFAULT_SIZE', 'big');
+
+define('FIELD_SELECT_DEFAULT_EMPTY_OPTION', '-- Select --');
+
+module_load_include('inc', 'entity_toolbox', 'entity_toolbox.functions');
+module_load_include('inc', 'entity_toolbox', 'entity_toolbox.toolbox');
+module_load_include('inc', 'entity_toolbox', 'entity_toolbox.entities');
+module_load_include('inc', 'entity_toolbox', 'entity_toolbox.forms');
+module_load_include('inc', 'entity_toolbox', 'entity_toolbox.themes');
+module_load_include('inc', 'entity_toolbox', 'includes/views/handlers/entity_toolbox_handler_link_field');
+
+/**
+ * Implements hook_menu().
+ */
+function entity_toolbox_menu() {
+  $items                                     = array();
+  $items['admin/config/entity_toolbox/test'] = array(
+	'title'            => t('ETBX test'),
+	'description'      => t('ETBX test'),
+	'type'             => MENU_NORMAL_ITEM,
+	'page callback'    => 'entity_toolbox_test',
+	'access arguments' => array('access administration pages'),
+  );
+
+  return $items;
+}
+
+function entity_toolbox_test() {
+//  entity_toolbox_include('views');
+  entity_toolbox_include('tree');
+//  $info     = entity_toolbox_entity_permissions_build('product_family_type');
+//  $entity  = product_family_load(2);
+//  $wrapper = entity_metadata_wrapper('product_family', $entity);
+//  $author  = $wrapper->author->value();
+//  $cat     = $wrapper->product_category->value();
+//  $family  = $wrapper->parent_product_family->value();
+//  $f = product_family_create(array('type' => 'test'));
+//  $menu = entity_UI_controller_menu_build('product_family');
+//  $view = entity_toolbox_entity_admin_view_build('product_family');
+//  $info = entity_toolbox_field_categories_get_by_category_group();
+//  $info = hedios_catalog_entity_toolbox_entity_group_attach_info();
+//  $info = entity_toolbox_entity_group_entities_info();
+//  $list = entity_toolbox_entity_get_list();
+//  $info = entity_toolbox_entity_get_info('product_pack');
+//  $schema = entity_toolbox_entity_schema_build('product_pack');
+//  $p_pack = product_pack_load(2);
+//  $wrapper = entity_metadata_wrapper('product_pack', $p_pack);
+//  $products = $wrapper->products->value();
+//  $entity          = product_load(1);
+//  $entity_type     = $entity->entityType();
+//  $toolbox_info    = entity_toolbox_entity_get_info($entity_type);
+//  $entity_group    = $toolbox_info['group'];
+//  $category_groups = entity_toolbox_field_category_group_get_by_entity_group($entity_group);
+//  $categories      = entity_toolbox_field_categories_get_by_category_group(reset($category_groups));
+//  $orphans = entity_toolbox_family_tree_build('product_family', 'product_family');
+//  $info = entity_get_property_info('subscription');
+}
+
+/**
+ * Implements hook_theme().
+ */
+function entity_toolbox_theme() {
+  return array(
+	'entity_add_list' => array(
+	  'variables' => array('content' => array(), 'type' => NULL),
+	  'file'      => 'entity_toolbox.themes.inc',
+	),
+  );
+}

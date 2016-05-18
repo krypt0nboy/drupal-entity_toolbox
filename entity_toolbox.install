@@ -1,0 +1,69 @@
+<?php
+
+/**
+ * Implements hook_schema().
+ */
+function entity_toolbox_schema() {
+  $schema                            = array();
+  $schema['entity_toolbox_versions'] = array(
+	'description' => 'A table to store entities current properties version.',
+	'fields'      => array(
+	  'entity_type'     => array(
+		'description' => 'The entity_type.',
+		'type'        => 'varchar',
+		'length'      => 255,
+		'not null'    => TRUE,
+		'default'     => ''
+	  ),
+	  'current_version' => array(
+		'description' => 'The current properties version for this entity_type.',
+		'type'        => 'int',
+		'not null'    => TRUE,
+		'default'     => 0
+	  ),
+	),
+	'primary key' => array('entity_type')
+  );
+  return $schema;
+}
+
+/**
+ * Adds a table to keep track of installed entities.
+ */
+function entity_toolbox_update_7001() {
+  $schema = array(
+	'description' => 'Keeps track of installed entities.',
+	'fields'      => array(
+	  'entity_type' => array(
+		'description' => 'The entity type.',
+		'type'        => 'varchar',
+		'length'      => 255,
+		'default'     => '',
+		'not null'    => TRUE,
+	  ),
+	  'module'      => array(
+		'description' => 'The module managing the entity type.',
+		'type'        => 'varchar',
+		'length'      => 255,
+		'default'     => '',
+		'not null'    => TRUE,
+	  ),
+	  'table'       => array(
+		'description' => 'The base table for this entity type.',
+		'type'        => 'varchar',
+		'length'      => 255,
+		'default'     => '',
+		'not null'    => TRUE,
+	  ),
+	  'installed'   => array(
+		'description' => 'A boolean indicating if the entity type is installed.',
+		'type'        => 'int',
+		'size'        => 'tiny',
+		'default'     => 1,
+		'not null'    => TRUE,
+	  )
+	),
+	'primary key' => array('entity_type')
+  );
+  db_create_table('installed_entities', $schema);
+}
