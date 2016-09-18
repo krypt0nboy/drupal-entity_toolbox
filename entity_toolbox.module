@@ -1,108 +1,381 @@
 <?php
 
-define('ENTITY_TOOLBOX_PATH', drupal_get_path('module', 'entity_toolbox'));
-
-define('GET_FIELDABLE', 'fieldable');
-define('GET_NOT_FIELDABLE', 'not_fieldable');
-define('GET_ALL', 'all');
+/**
+ * @file
+ *
+ * This file contains basic functions to use entity_toolbox.
+ * This is also where most of the available hooks are implemented.
+ */
 
 /**
- * Default constants for entity_toolbox_get_info().
+ * The module's path.
  */
-define('DEFAULT_AUTOCOMPLETE_CALLBACK', '');
+define('ENTITY_TOOLBOX_PATH', drupal_get_path('module', 'entity_toolbox'));
 
-define('PROPERTY_REFERENCE_MULTIPLE_DEFAULT_FIELD_WIDGET', 'autocomplete');
+/**
+ * Table that keeps track of installed entities.
+ */
+define('ENTITY_TOOLBOX_DB__INSTALLED', 'installed_entities');
 
-define('PROPERTY_DECIMAL_DEFAULT_FIELD_WIDGET', 'textfield');
-define('PROPERTY_DECIMAL_DEFAULT_PRECISION', 10);
-define('PROPERTY_DECIMAL_DEFAULT_SCALE', 2);
-define('PROPERTY_DECIMAL_DEFAULT_DEFAULT', 0);
+/**
+ * Table to store entity_toolbox related cache.
+ */
+define('ENTITY_TOOLBOX_DB__CACHE', 'cache_entity_toolbox');
 
-define('PROPERTY_INTEGER_DEFAULT_FIELD_WIDGET', 'textfield');
-define('PROPERTY_INTEGER_DEFAULT_SIZE', 'tiny');
-define('PROPERTY_INTEGER_DEFAULT_DEFAULT', 0);
+/**
+ * Default multi value property getter callback.
+ */
+define('DEFAULT_MULTI_VALUE_GETTER', 'entity_toolbox_multi_value_property_get');
 
-define('PROPERTY_FLOAT_DEFAULT_FIELD_WIDGET', 'texfield');
-define('PROPERTY_FLOAT_DEFAULT_SIZE', 'tiny');
-define('PROPERTY_FLOAT_DEFAULT_DEFAULT', 0);
+/**
+ * Default multi value property setter callback.
+ */
+define('DEFAULT_MULTI_VALUE_SETTER', 'entity_toolbox_multi_value_property_set');
 
-define('PROPERTY_TOKEN_DEFAULT_FIELD_WIDGET', 'machine_name');
-define('PROPERTY_TOKEN_DEFAULT_LENGTH', 255);
+/**
+ * Default precision for DecimalProperty.
+ */
+define('DEFAULT_PRECISION', variable_get('default_precision', 10));
 
-define('PROPERTY_TEXT_DEFAULT_SIZE', 'small');
-define('PROPERTY_TEXT_FIELD_DEFAULT_LENGTH', 255);
+/**
+ * Default scale for DecimalScale.
+ */
+define('DEFAULT_SCALE', variable_get('default_scale', 2));
 
-define('PROPERTY_TEXT_DEFAULT_FIELD_ROWS', 5);
-
-define('PROPERTY_BOOLEAN_DEFAULT_FIELD_WIDGET', 'checkbox');
-define('PROPERTY_BOOLEAN_DEFAULT_DEFAULT', 0);
-
-define('PROPERTY_SERIALIZED_DEFAULT_SIZE', 'big');
-
-define('FIELD_SELECT_DEFAULT_EMPTY_OPTION', '-- Select --');
-
-module_load_include('inc', 'entity_toolbox', 'entity_toolbox.functions');
-module_load_include('inc', 'entity_toolbox', 'entity_toolbox.toolbox');
+module_load_include('inc', 'entity_toolbox', 'entity_toolbox.admin');
+module_load_include('inc', 'entity_toolbox', 'entity_toolbox.toolbox.build');
+module_load_include('inc', 'entity_toolbox', 'entity_toolbox.build');
+module_load_include('inc', 'entity_toolbox', 'entity_toolbox.factories');
+module_load_include('inc', 'entity_toolbox', 'entity_toolbox.cache');
+module_load_include('inc', 'entity_toolbox', 'entity_toolbox.classes');
+module_load_include('inc', 'entity_toolbox', 'entity_toolbox.controllers');
 module_load_include('inc', 'entity_toolbox', 'entity_toolbox.entities');
-module_load_include('inc', 'entity_toolbox', 'entity_toolbox.forms');
+module_load_include('inc', 'entity_toolbox', 'entity_toolbox.format');
+module_load_include('inc', 'entity_toolbox', 'entity_toolbox.forms.functions');
+module_load_include('inc', 'entity_toolbox', 'entity_toolbox.functions');
+module_load_include('inc', 'entity_toolbox', 'entity_toolbox.hooks');
 module_load_include('inc', 'entity_toolbox', 'entity_toolbox.themes');
-module_load_include('inc', 'entity_toolbox', 'includes/views/handlers/entity_toolbox_handler_link_field');
+module_load_include('inc', 'entity_toolbox', 'entity_toolbox.toolbox');
+module_load_include('inc', 'entity_toolbox', 'entity_toolbox.ui');
 
 /**
  * Implements hook_menu().
  */
 function entity_toolbox_menu() {
-  $items                                     = array();
-  $items['admin/config/entity_toolbox/test'] = array(
-	'title'            => t('ETBX test'),
-	'description'      => t('ETBX test'),
-	'type'             => MENU_NORMAL_ITEM,
-	'page callback'    => 'entity_toolbox_test',
-	'access arguments' => array('access administration pages'),
+  $items                                         = array();
+  $items['admin/config/entity_toolbox']          = array(
+    'title'            => t('Entity toolbox'),
+    'description'      => t('Entity Toolbox'),
+    'type'             => MENU_NORMAL_ITEM,
+    'page callback'    => 'system_admin_menu_block_page',
+    'access arguments' => array('access administration pages'),
+    'file path'        => drupal_get_path('module', 'system'),
+    'file'             => 'system.admin.inc',
+  );
+  $items['admin/config/entity_toolbox/settings'] = array(
+    'title'            => t('Entity toolbox settings'),
+    'description'      => t('Entity Toolbox settings.'),
+    'type'             => MENU_NORMAL_ITEM,
+    'page callback'    => 'drupal_get_form',
+    'page arguments'   => array('entity_toolbox_settings_form'),
+    'access arguments' => array('access administration pages'),
   );
 
   return $items;
 }
 
-function entity_toolbox_test() {
-//  entity_toolbox_include('views');
-  entity_toolbox_include('tree');
-//  $info     = entity_toolbox_entity_permissions_build('product_family_type');
-//  $entity  = product_family_load(2);
-//  $wrapper = entity_metadata_wrapper('product_family', $entity);
-//  $author  = $wrapper->author->value();
-//  $cat     = $wrapper->product_category->value();
-//  $family  = $wrapper->parent_product_family->value();
-//  $f = product_family_create(array('type' => 'test'));
-//  $menu = entity_UI_controller_menu_build('product_family');
-//  $view = entity_toolbox_entity_admin_view_build('product_family');
-//  $info = entity_toolbox_field_categories_get_by_category_group();
-//  $info = hedios_catalog_entity_toolbox_entity_group_attach_info();
-//  $info = entity_toolbox_entity_group_entities_info();
-//  $list = entity_toolbox_entity_get_list();
-//  $info = entity_toolbox_entity_get_info('product_pack');
-//  $schema = entity_toolbox_entity_schema_build('product_pack');
-//  $p_pack = product_pack_load(2);
-//  $wrapper = entity_metadata_wrapper('product_pack', $p_pack);
-//  $products = $wrapper->products->value();
-//  $entity          = product_load(1);
-//  $entity_type     = $entity->entityType();
-//  $toolbox_info    = entity_toolbox_entity_get_info($entity_type);
-//  $entity_group    = $toolbox_info['group'];
-//  $category_groups = entity_toolbox_field_category_group_get_by_entity_group($entity_group);
-//  $categories      = entity_toolbox_field_categories_get_by_category_group(reset($category_groups));
-//  $orphans = entity_toolbox_family_tree_build('product_family', 'product_family');
-//  $info = entity_get_property_info('subscription');
+/**
+ * Implements @see hook_flush_caches().
+ */
+function entity_toolbox_flush_caches() {
+  return array(ENTITY_TOOLBOX_DB__CACHE);
 }
 
 /**
- * Implements hook_theme().
+ * Implements hook_admin_menu_cache_info().
+ *
+ * @see entity_toolbox_cache_clear_all().
  */
-function entity_toolbox_theme() {
-  return array(
-	'entity_add_list' => array(
-	  'variables' => array('content' => array(), 'type' => NULL),
-	  'file'      => 'entity_toolbox.themes.inc',
-	),
+function entity_toolbox_admin_menu_cache_info() {
+  $caches['entity_toolbox'] = array(
+    'title'    => t('Entity toolbox'),
+    'callback' => 'entity_toolbox_cache_clear_all',
   );
+
+  return $caches;
+}
+
+/**
+ * Implements hook_hook_register_info().
+ */
+function entity_toolbox_hook_register_info() {
+  $info                          = array();
+  $info['entity_toolbox_info']   = array(
+    'build callback' => 'entity_toolbox_info_build',
+    'factory class'  => 'EntityDependentHookBuilderFactory',
+    'base class'     => 'EntityToolboxInfoBuilder',
+    'model class'    => 'EntityToolboxInfoBuilder%fieldable%',
+  );
+  $info['entity_info']           = array(
+    'build callback' => 'entity_info_build',
+    'factory class'  => 'EntityToolboxDependentHookBuilderFactory',
+    'base class'     => 'EntityInfoBuilder',
+    'model class'    => 'EntityInfoBuilder%fieldable%',
+  );
+  $info['entity_property_info']  = array(
+    'build callback' => 'entity_property_info_build',
+    'factory class'  => 'EntityToolboxDependentHookBuilderFactory',
+    'base class'     => 'EntityPropertyInfoBuilder',
+    'model class'    => 'EntityPropertyInfoBuilder',
+  );
+  $info['entity_operation_info'] = array(
+    'build callback' => 'entity_operation_info_build',
+    'factory class'  => 'EntityToolboxDependentHookBuilderFactory',
+    'base class'     => 'EntityOperationInfoBuilder',
+    'model class'    => 'EntityOperationInfoBuilder%fieldable%',
+  );
+  $info['schema']                = array(
+    'build callback' => 'schema_build',
+    'factory class'  => 'EntityToolboxDependentHookBuilderFactory',
+    'base class'     => 'SchemaBuilder',
+    'model class'    => 'SchemaBuilder%fieldable%',
+  );
+  $info['menu']                  = array(
+    'build callback' => 'menu_build',
+    'factory class'  => 'HookBuilderFactory',
+    'base class'     => 'MenuBuilder',
+  );
+  $info['permission']            = array(
+    'build callback' => 'permission_build',
+    'factory class'  => 'HookBuilderFactory',
+    'base class'     => 'PermissionBuilder',
+  );
+  $info['theme']                 = array(
+    'build callback' => 'theme_build',
+    'factory class'  => 'HookBuilderFactory',
+    'base class'     => 'ThemeBuilder',
+  );
+  $info['hook_info']             = array(
+    'build callback' => 'hook_info_build',
+    'factory class'  => 'HookBuilderFactory',
+    'base class'     => 'HookInfoBuilder',
+  );
+
+  return $info;
+}
+
+/**
+ * Implements hook_class_type_info().
+ */
+function entity_toolbox_class_type_info() {
+  $info                  = array();
+  $info['entity']        = array(
+    'base class' => 'EntityToolbox%fieldable%',
+    'default'    => array(
+      'class' => '%class_base_class%',
+      'path'  => '%toolbox_info_module_path%/src/classes/entities',
+      'file'  => '%class_base_class%.inc',
+    ),
+  );
+  $info['controller']    = array(
+    'base class' => 'EntityToolboxController%fieldable%',
+    'default'    => array(
+      'class' => '%class_base_class%Controller',
+      'path'  => '%toolbox_info_module_path%/src/classes/controllers',
+      'file'  => '%class_base_class%Controller.inc',
+    ),
+  );
+  $info['ui controller'] = array(
+    'base class' => 'EntityToolboxUIController%fieldable%',
+    'default'    => array(
+      'class' => '%class_base_class%UIController',
+      'path'  => '%toolbox_info_module_path%/src/classes/controllers',
+      'file'  => '%class_base_class%UIController.inc',
+    ),
+  );
+
+  return $info;
+}
+
+/**
+ * Implements hook_toolbox_property_type_info().
+ *
+ * Returns info on property types required by entity toolbox.
+ */
+function entity_toolbox_toolbox_property_type_info() {
+  $info                          = array();
+  $info['string']                = array(
+    'base class' => 'StringProperty',
+  );
+  $info['varchar']               = array(
+    'base class' => 'VarcharProperty',
+  );
+  $info['machine_name']          = array(
+    'base class' => 'MachineNameProperty',
+  );
+  $info['bundle']                = array(
+    'base class' => 'BundleProperty',
+  );
+  $info['alphanumeric']          = array(
+    'base class' => 'AlphaNumericProperty',
+  );
+  $info['entity_machine_name']   = array(
+    'base class'  => 'EntityMachineNameProperty',
+    'model class' => 'EntityMachineNameProperty%fieldable%',
+  );
+  $info['entity_human_name']     = array(
+    'base class'  => 'EntityHumanNameProperty',
+    'model class' => 'EntityHumanNameProperty%fieldable%',
+  );
+  $info['text']                  = array(
+    'base class' => 'TextProperty',
+  );
+  $info['small_text']            = array(
+    'base class' => 'SmallTextProperty',
+  );
+  $info['medium_text']           = array(
+    'base class' => 'mediumTextProperty',
+  );
+  $info['long_text']             = array(
+    'base class' => 'LongTextProperty',
+  );
+  $info['numeric']               = array(
+    'base class' => 'NumericProperty',
+  );
+  $info['int']                   = array(
+    'base class' => 'IntegerProperty',
+  );
+  $info['weight']                = array(
+    'base class' => 'WeightProperty',
+  );
+  $info['float']                 = array(
+    'base class' => 'FloatProperty',
+  );
+  $info['decimal']               = array(
+    'base class' => 'DecimalProperty',
+  );
+  $info['boolean']               = array(
+    'base class' => 'BooleanProperty',
+  );
+  $info['status']                = array(
+    'base class' => 'StatusProperty',
+  );
+  $info['entity_id']             = array(
+    'base class'  => 'IdProperty',
+    'model class' => 'IdProperty%fieldable%',
+  );
+  $info['entity_revision_id']    = array(
+    'base class' => 'RevisionIdProperty',
+  );
+  $info['entity_translation_id'] = array(
+    'base class' => 'TranslationIdProperty',
+  );
+  $info['entity_weight']         = array(
+    'base class' => 'EntityWeightProperty',
+  );
+  $info['date']                  = array(
+    'base class' => 'DateProperty'
+  );
+  $info['timestamp']             = array(
+    'base class' => 'TimeStampProperty'
+  );
+  $info['created']               = array(
+    'base class' => 'CreationTimeStampProperty'
+  );
+  $info['updated']               = array(
+    'base class' => 'UpdateTimeStampProperty'
+  );
+  $info['duration']              = array(
+    'base class' => 'DurationProperty'
+  );
+  $info['object']                = array(
+    'base class' => 'ObjectProperty'
+  );
+  $info['reference']             = array(
+    'base class' => 'EntityProperty'
+  );
+  $info['author']                = array(
+    'base class' => 'AuthorProperty'
+  );
+  $info['display']               = array(
+    'base class' => 'DisplayProperty'
+  );
+  $info['parent']                = array(
+    'base class' => 'ParentEntityProperty'
+  );
+  $info['self_parent']           = array(
+    'base class' => 'SelfParentEntityProperty'
+  );
+
+  return $info;
+}
+
+/**
+ * Implements hook_schema_type_info().
+ */
+function entity_toolbox_schema_type_info() {
+  $info                      = array();
+  $info['base']              = array(
+    'base class'  => 'SchemaBaseBuilder',
+    'class model' => 'SchemaBaseBuilder%fieldable%'
+  );
+  $info['revision']          = array(
+    'base class'  => 'SchemaRevisionBuilder',
+    'class model' => 'SchemaRevisionBuilder%fieldable%'
+  );
+  $info['relation']          = array(
+    'base class'  => 'SchemaRelationBuilder',
+    'class model' => 'SchemaRelationBuilder%fieldable%'
+  );
+  $info['relation_revision'] = array(
+    'base class'  => 'SchemaRelationRevisionBuilder',
+    'class model' => 'SchemaRelationRevisionBuilder%fieldable%'
+  );
+
+  return $info;
+}
+
+/**
+ * Implements hook_toolbox_callback_type_info().
+ */
+function entity_toolbox_toolbox_callback_type_info() {
+  $info           = array();
+  $info['create'] = array(
+    'name'    => '%entity_type%_create',
+    'default' => 'entity_toolbox_create',
+  );
+  $info['access'] = array(
+    'name'    => '%entity_type%_access',
+    'default' => 'entity_toolbox_access',
+  );
+  $info['uri']    = array(
+    'name'    => '%entity_type%_uri',
+    'default' => 'entity_toolbox_uri',
+  );
+  $info['page']   = array(
+    'name'    => '%entity_type%_page',
+    'default' => 'entity_toolbox_page',
+  );
+  $info['label']  = array(
+    'name'    => '%entity_type%_label',
+    'default' => 'entity_toolbox_label',
+  );
+
+  return $info;
+}
+
+/**
+ * Implements hook_modules_installed().
+ */
+function entity_toolbox_modules_installed($modules) {
+  //Clear the cache that needs to be cleared when this hook is invoked.
+  _toolbox_cache_clear('modules_installed');
+}
+
+/**
+ * Implements hook_field_create_instance().
+ */
+function entity_toolbox_field_create_instance($instance) {
+  //Clear the cache that needs to be cleared when this hook is invoked.
+  _toolbox_cache_clear('field_create_instance');
 }

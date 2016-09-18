@@ -2,68 +2,57 @@
 
 /**
  * Implements hook_schema().
+ *
+ * "installed_entities" keeps track of entities installed and live in the system.
+ * "ENTITY_TOOLBOX_DB__CACHE" provides a tables to cache info gathered and processed by the module.
  */
 function entity_toolbox_schema() {
-  $schema                            = array();
-  $schema['entity_toolbox_versions'] = array(
-	'description' => 'A table to store entities current properties version.',
-	'fields'      => array(
-	  'entity_type'     => array(
-		'description' => 'The entity_type.',
-		'type'        => 'varchar',
-		'length'      => 255,
-		'not null'    => TRUE,
-		'default'     => ''
-	  ),
-	  'current_version' => array(
-		'description' => 'The current properties version for this entity_type.',
-		'type'        => 'int',
-		'not null'    => TRUE,
-		'default'     => 0
-	  ),
-	),
-	'primary key' => array('entity_type')
+  $schema                           = array();
+  $schema['installed_entities']     = array(
+    'description' => 'Keeps track of installed entities.',
+    'fields'      => array(
+      'entity_type' => array(
+        'description' => 'The entity type.',
+        'type'        => 'varchar',
+        'length'      => 255,
+        'default'     => '',
+        'not null'    => TRUE,
+      ),
+      'module'      => array(
+        'description' => 'The module managing the entity type.',
+        'type'        => 'varchar',
+        'length'      => 255,
+        'default'     => '',
+        'not null'    => TRUE,
+      ),
+      'table'       => array(
+        'description' => 'The base table for this entity type.',
+        'type'        => 'varchar',
+        'length'      => 255,
+        'default'     => '',
+        'not null'    => TRUE,
+      ),
+      'installed'   => array(
+        'description' => 'A boolean indicating if the entity type is installed.',
+        'type'        => 'int',
+        'size'        => 'tiny',
+        'default'     => 1,
+        'not null'    => TRUE,
+      )
+    ),
+    'primary key' => array('entity_type')
   );
+  $schema[ENTITY_TOOLBOX_DB__CACHE] = drupal_get_schema_unprocessed('system', 'cache');
+
   return $schema;
 }
 
 /**
- * Adds a table to keep track of installed entities.
+ * Implements hook_install().
  */
-function entity_toolbox_update_7001() {
-  $schema = array(
-	'description' => 'Keeps track of installed entities.',
-	'fields'      => array(
-	  'entity_type' => array(
-		'description' => 'The entity type.',
-		'type'        => 'varchar',
-		'length'      => 255,
-		'default'     => '',
-		'not null'    => TRUE,
-	  ),
-	  'module'      => array(
-		'description' => 'The module managing the entity type.',
-		'type'        => 'varchar',
-		'length'      => 255,
-		'default'     => '',
-		'not null'    => TRUE,
-	  ),
-	  'table'       => array(
-		'description' => 'The base table for this entity type.',
-		'type'        => 'varchar',
-		'length'      => 255,
-		'default'     => '',
-		'not null'    => TRUE,
-	  ),
-	  'installed'   => array(
-		'description' => 'A boolean indicating if the entity type is installed.',
-		'type'        => 'int',
-		'size'        => 'tiny',
-		'default'     => 1,
-		'not null'    => TRUE,
-	  )
-	),
-	'primary key' => array('entity_type')
-  );
-  db_create_table('installed_entities', $schema);
+function entity_toolbox_install() {
+  //setting variables for default entity form settings
+  variable_set('ajax_enabled', TRUE);
+  variable_set('notifications_enabled', TRUE);
+  variable_set('cache_enabled', FALSE);
 }

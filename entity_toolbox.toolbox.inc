@@ -1,35 +1,411 @@
 <?php
 
 /**
- * @TODO : add reverse_entity_get_info() to work with entities that were not declared through entity_toolbox.
+ * @file
+ *
+ * This file contains the functions required to extract, process and store information provided by entity_toolbox hooks.
  */
 
+/**
+ * Returns info on an entity toolbox cache cid,
+ * such as "expires".
+ * Unlike any other entity toolbox cache element, this one is stored in "cache"
+ * to avoid errors when retrieving and processing the cache info.
+ *
+ * @param null $cid
+ *   The cid, or NULL to return info on all cid's.
+ *
+ * @return array
+ *
+ * @see hook_entity_toolbox_cache_info().
+ */
+function entity_toolbox_cache_get_info($cid = NULL) {
 
-function entity_toolbox_cache_clear_all() {
-  $cache_keys = array(
-	'entity_toolbox_entity_info',
-	'entity_toolbox_module_entities_list',
-	'entities_bundles',
-	'entity_toolbox_current_versions',
-	'entities_inheritable_properties',
-	'entities_inherited_properties',
-	'entities_parent_properties',
-	'entities_parent_entities'
-  );
-  foreach ($cache_keys as $cache_key) {
-	drupal_static_reset($cache_key);
-	cache_clear_all($cache_key, 'cache');
+  /**
+   * We cache it since its used very often.
+   */
+  static $drupal_static_fast;
+  if (!isset($drupal_static_fast)) {
+    $drupal_static_fast[ENTITY_TOOLBOX__CACHE_INFO] = &drupal_static(__FUNCTION__);
   }
+
+  $entity_toolbox_cache_info = &$drupal_static_fast[ENTITY_TOOLBOX__CACHE_INFO];
+  if (empty($entity_toolbox_cache_info)) {
+    if ($cache = cache_get(ENTITY_TOOLBOX__CACHE_INFO)) {
+      $entity_toolbox_cache_info = $cache->data;
+    }
+    else {
+      $data = module_invoke_all('entity_toolbox_cache_info');
+      drupal_alter('entity_toolbox_cache_info', $data);
+      $info = array();
+      foreach ($data as $key => $value) {
+        $value += array(
+          'cache' => TRUE
+        );
+        $info[$key] = $value;
+      }
+
+      $entity_toolbox_cache_info = $info;
+      cache_set(ENTITY_TOOLBOX__CACHE_INFO, $entity_toolbox_cache_info);
+    }
+  }
+
+  return isset($cid) ? $entity_toolbox_cache_info[$cid] : $entity_toolbox_cache_info;
 }
 
 /**
- * Gets the info declared through entity_toolbox.
- * @TODO : clean the function code.
+ * Returns the hooks on which entity toolbox cache IDs should be cleared.
  *
- * @param null $entity_type
+ * @param string $hook
+ *   The hook name.
+ *
+ * @return string[]
+ */
+function entity_toolbox_cache_hook_get_info($hook) {
+  $hooks = &drupal_static(__FUNCTION__, array());
+  if (!isset($hooks[$hook])) {
+    $cache_info = entity_toolbox_cache_get_info();
+    foreach ($cache_info as $cid => $info) {
+      if (!empty($info['hooks'][$hook])) {
+        $hooks[$hook][] = $cid;
+      }
+    }
+  }
+
+  return $hooks[$hook];
+}
+
+/**
+ * Returns a list of hooks set to clear some cache cid when invoked.
+ *
+ * @return string[]
+ */
+function entity_toolbox_cache_hooks_get_info() {
+  $hooks = &drupal_static(__FUNCTION__, array());
+  if (!isset($hooks)) {
+    $cache_info = entity_toolbox_cache_get_info();
+    $buffer     = array();
+    foreach ($cache_info as $cid => $info) {
+      foreach ($info['hooks'] as $hook) {
+        $buffer[] = $hook;
+      }
+    }
+    $hooks = array_unique($buffer);
+  }
+
+  return $hooks;
+}
+
+/**
+ * Returns the available hooks builders info.
+ *
+ * @param null $hook
+ *   The hook name, or NULL to return all hooks.
+ *
+ * @return array
+ *
+ * @see hook_hook_register_info().
+ */
+function entity_toolbox_hook_get_info($hook = NULL) {
+  $HOOK     = 'hook_register_info';
+  $CACHEKEY = ENTITY_TOOLBOX__HOOK_REGISTER_INFO;
+
+  /**
+   * Cached since used very often.
+   */
+  static $drupal_static_fast;
+  if (!isset($drupal_static_fast)) {
+    $drupal_static_fast['hook_register_info'] = &drupal_static(__FUNCTION__);
+  }
+
+  $hook_register_info = &$drupal_static_fast['hook_register_info'];
+  if (empty($hook_register_info)) {
+    if ($cache = entity_toolbox_cache_get($CACHEKEY)) {
+      $hook_register_info = $cache->data;
+    }
+    else {
+      $data = module_invoke_all($HOOK);
+      drupal_alter($HOOK, $data);
+      $hook_register_info = $data;
+      entity_toolbox_cache_set($CACHEKEY, $hook_register_info);
+    }
+  }
+
+  return isset($hook) ? $hook_register_info[$hook] : $hook_register_info;
+}
+
+/**
+ * Returns the classes types declared in entity_toolbox.
+ *
+ * @param string $class
+ *   The class type, or NULL to return info on evert class type.
+ *
+ * @return array|null
+ */
+function entity_toolbox_class_type_get_info($class = NULL) {
+  $HOOK     = 'class_type_info';
+  $CACHEKEY = ENTITY_TOOLBOX__CLASS_TYPE_INFO;
+
+  /**
+   * Cached since used very often.
+   */
+  static $drupal_static_fast;
+  if (!isset($drupal_static_fast)) {
+    $drupal_static_fast['class_type_info'] = &drupal_static(__FUNCTION__);
+  }
+
+  $class_type_info = &$drupal_static_fast['class_type_info'];
+  if (empty($class_type_info)) {
+    if ($cache = entity_toolbox_cache_get($CACHEKEY)) {
+      $class_type_info = $cache->data;
+    }
+    else {
+      $data = module_invoke_all($HOOK);
+      drupal_alter($HOOK, $data);
+      $class_type_info = $data;
+      entity_toolbox_cache_set($CACHEKEY, $class_type_info);
+    }
+  }
+
+  return isset($class) ? $class_type_info[$class] : $class_type_info;
+}
+
+/**
+ * Returns info on an entity_toolbox property type.
+ *
+ * @param null $property_type
+ *   The property type, or NULL to return all property types.
+ *
+ * @return array
+ *
+ * @see hook_toolbox_property_type_info().
+ */
+function entity_toolbox_property_type_get_info($property_type = NULL) {
+  $HOOK     = 'toolbox_property_type_info';
+  $CACHEKEY = ENTITY_TOOLBOX__PROPERTY_TYPE_INFO;
+
+  /**
+   * Cached since used very often.
+   */
+  static $drupal_static_fast;
+  if (!isset($drupal_static_fast)) {
+    $drupal_static_fast['property_type_info'] = &drupal_static(__FUNCTION__);
+  }
+
+  $property_type_info = &$drupal_static_fast['property_type_info'];
+  if (empty($property_type_info)) {
+    if ($cache = entity_toolbox_cache_get($CACHEKEY)) {
+      $property_type_info = $cache->data;
+    }
+    else {
+      $data = module_invoke_all($HOOK);
+      drupal_alter($HOOK, $data);
+
+      $types = array();
+      foreach ($data as $type => $info) {
+        $types[$type] = $info;
+      }
+
+      $property_type_info = $types;
+      entity_toolbox_cache_set($CACHEKEY, $property_type_info);
+    }
+  }
+
+  return isset($property_type) ? $property_type_info[$property_type] : $property_type_info;
+}
+
+/**
+ * Returns info on a widget type.
+ *
+ * @param null $widget
+ *   The widget name, or NULL to return info on all widgets.
+ *
+ * @return array
+ *
+ * @see hook_toolbox_property_widget_info().
+ */
+function entity_toolbox_property_widget_get_info($widget = NULL) {
+  $HOOK     = 'toolbox_property_widget_info';
+  $CACHEKEY = ENTITY_TOOLBOX__PROPERTY_WIDGET_INFO;
+
+  /**
+   * Cached since used very often.
+   */
+  static $drupal_static_fast;
+  if (!isset($drupal_static_fast)) {
+    $drupal_static_fast['property_type_info'] = &drupal_static(__FUNCTION__);
+  }
+
+  $property_widget_info = &$drupal_static_fast['property_widget_info'];
+  if (empty($property_widget_info)) {
+    if ($cache = entity_toolbox_cache_get($CACHEKEY)) {
+      $property_widget_info = $cache->data;
+    }
+    else {
+      $data = module_invoke_all($HOOK);
+      drupal_alter($HOOK, $data);
+
+      $types = array();
+      foreach ($data as $type => $info) {
+        $types[$type] = $info;
+      }
+
+      $property_widget_info = $types;
+      entity_toolbox_cache_set($CACHEKEY, $property_widget_info);
+    }
+  }
+
+  return isset($widget) ? $property_widget_info[$widget] : $property_widget_info;
+}
+
+/**
+ * Returns info on schema types (or table types), such as base table, revision table, etc...
+ *
+ * @param null|string $schema_type
+ *   The schema type, or NULL to return info on all schema types.
+ *
+ * @return array
+ *
+ * @see hook_schema_type_info().
+ */
+function entity_toolbox_schema_type_get_info($schema_type = NULL) {
+  $HOOK     = 'schema_type_info';
+  $CACHEKEY = ENTITY_TOOLBOX__SCHEMA_TYPE_INFO;
+
+  /**
+   * Cached since used very often.
+   */
+  static $drupal_static_fast;
+  if (!isset($drupal_static_fast)) {
+    $drupal_static_fast['schema_type_info'] = &drupal_static(__FUNCTION__);
+  }
+
+  $schema_type_info = &$drupal_static_fast['schema_type_info'];
+  if (empty($schema_type_info)) {
+    if ($cache = entity_toolbox_cache_get($CACHEKEY)) {
+      $schema_type_info = $cache->data;
+    }
+    else {
+      $data = module_invoke_all($HOOK);
+      drupal_alter($HOOK, $data);
+
+      $types = array();
+      foreach ($data as $type => $info) {
+        $types[$type] = $info;
+      }
+
+      $schema_type_info = $types;
+      entity_toolbox_cache_set($CACHEKEY, $schema_type_info);
+    }
+  }
+
+  return isset($schema_type) ? $schema_type_info[$schema_type] : $schema_type_info;
+}
+
+/**
+ * Returns an entity callback type info.
+ * Callbacks declared in the hook_toolbox_callback_type_info() are default and often required callbacks for an entity.
+ *
+ * @param null $type
+ *   The callback type.
+ *
+ * @return array
+ *
+ * @see hook_toolbox_callback_type_info()
+ */
+function entity_toolbox_entity_callback_type_get_info($type = NULL) {
+  $HOOK     = 'toolbox_callback_type_info';
+  $CACHEKEY = ENTITY_TOOLBOX__CALLBACK_TYPE_INFO;
+
+  /**
+   * Cached since used very often.
+   */
+  static $drupal_static_fast;
+  if (!isset($drupal_static_fast)) {
+    $drupal_static_fast['callback_type_info'] = &drupal_static(__FUNCTION__);
+  }
+
+  $callback_type_info = &$drupal_static_fast['callback_type_info'];
+  if (empty($callback_type_info)) {
+    if ($cache = entity_toolbox_cache_get($CACHEKEY)) {
+      $callback_type_info = $cache->data;
+    }
+    else {
+      $types = array();
+      $data  = module_invoke_all($HOOK);
+      drupal_alter($HOOK, $data);
+      foreach ($data as $callback => $info) {
+        $types[$callback] = $info;
+      }
+      $callback_type_info = $types;
+      entity_toolbox_cache_set($CACHEKEY, $callback_type_info);
+    }
+  }
+
+  return isset($type) ? $callback_type_info[$type] : $callback_type_info;
+}
+
+/**
+ * Returns a module entity_toolbox settings, declared in the module's info file.
+ *
+ * @param string $module
+ *   The module's name.
+ *
+ * @return mixed
+ */
+function entity_toolbox_module_info_get_info($module) {
+  $modules = &drupal_static(__FUNCTION__, array());
+  if (!in_array($module, $modules)) {
+    $info_file = drupal_parse_info_file(drupal_get_path('module', $module) . '/' . $module . '.info');
+    if (!empty($info_file['entity_toolbox'])) {
+      $info          = $info_file['entity_toolbox'];
+      $function      = $module . '_entity_toolbox_info';
+      $info2obj      = new stdClass();
+      $info2obj->api = $info['toolbox_api'][0];
+      if (function_exists($function)) {
+        $module_invoke      = $function();
+        $module_entities    = array_keys($module_invoke);
+        $info2obj->entities = $module_entities;
+      }
+      $function = $module . '_entity_group_info';
+      if (function_exists($function)) {
+        $module_invoke           = $function();
+        $entity_groups           = array_keys($module_invoke);
+        $info2obj->entity_groups = $entity_groups;
+      }
+      $modules[$module] = $info2obj;
+    }
+  }
+
+  return $modules[$module];
+}
+
+/**
+ * Returns a module entity_toolbox api, declared in the module's info file.
+ *
+ * @param string $module
+ *   The module's name.
+ *
+ * @return mixed
+ */
+function entity_toolbox_module_api_get_info($module) {
+  $modules = &drupal_static(__FUNCTION__, array());
+  if (!in_array($module, $modules)) {
+    $info             = entity_toolbox_module_info_get_info($module);
+    $modules[$module] = $info->api;
+  }
+
+  return $modules[$module];
+}
+
+/**
+ * Returns entities info declared through entity_toolbox.
+ *
+ * @param null|string $entity_type
  *   The machine_name of the entity for which to get the info or NULL to return an array for all the entities.
  *
- * @param bool $update_N
+ * @param null|int    $update_N
+ *   The update number for an entity type, or NULL to returns info with no updates.
  *
  * @see hook_entity_toolbox_entity_info().
  * @see hook_entity_toolbox_entity_info_alter().
@@ -37,1591 +413,829 @@ function entity_toolbox_cache_clear_all() {
  *
  * @return array
  */
-function entity_toolbox_entity_get_info($entity_type = NULL, $update_N = FALSE, $reset = FALSE) {
+function entity_toolbox_get_info($entity_type = NULL, $update_N = NULL, $reset = FALSE) {
+  /** @var string $HOOK */
+  $HOOK = 'entity_toolbox_info';
+  /** @var string $CACHEKEY */
+  $CACHEKEY = ENTITY_TOOLBOX__ENTITY_INFO;
+  /** @var string $TMP_CACHEKEY */
+  $TMP_CACHEKEY = ENTITY_TOOLBOX__TMP_ENTITY_INFO;
+
   /**
-   * We cache entity_toolbox_entity_info since its used very often.
+   * Cached since used very often.
    */
   static $drupal_static_fast;
   if (!isset($drupal_static_fast)) {
-	$drupal_static_fast['entity_toolbox_entity_info'] = &drupal_static(__FUNCTION__);
+    $drupal_static_fast['entity_toolbox_info'] = &drupal_static(__FUNCTION__);
   }
 
-  $entity_toolbox_entity_info = &$drupal_static_fast['entity_toolbox_entity_info'];
-//  if (empty($entity_toolbox_entity_info)) {
-//	if ($cache = cache_get('entity_toolbox_entity_info') && !$reset) {
-//	  $entity_toolbox_entity_info = $cache->data;
-//	}
-//	else {
-  entity_toolbox_include('format');
-  $data = module_invoke_all('entity_toolbox_entity_info');
-  drupal_alter('entity_toolbox_entity_info', $data);
-  foreach ($data as $type => $info) {
-	foreach ($info['properties'] as $name => $property) {
-	  $schema_field = !empty($property['schema field']) ? $property['schema field'] : $name;
-	  switch ($property['type']) {
-		case 'parent':
-		case 'reference':
-		  if (!is_reference_multiple($property)) {
-			$data[$type]['properties'][$name]['schema'] += array(
-			  'type' => 'int',
-			);
-		  }
-		  else {
-			unset($data[$type]['properties'][$name]['schema']);
-		  }
-		  break;
-		case 'id':
-		  if (empty($info['id_property'])) {
-			$data[$type]['id_property'] = $name;
-		  }
-		  $data[$type]['properties'][$name]['schema'] += array(
-			'description' => 'Primary Key: Identifier for a ' . $type,
-			'type'        => 'serial',
-			'not null'    => TRUE,
-			'unsigned'    => TRUE,
-		  );
-		  break;
-		case 'boolean':
-		  $data[$type]['properties'][$name]['schema'] += array(
-			'type'     => 'int',
-			'size'     => 'tiny',
-			'not null' => TRUE,
-			'default'  => PROPERTY_BOOLEAN_DEFAULT_DEFAULT,
-		  );
-		  break;
-		case 'machine_name':
-		case 'token':
-		  if ($property['key'] == 'bundle') {
-			$data[$type]['bundle_property'] = $name;
-		  }
-		  $data[$type]['properties'][$name]['schema'] += array(
-			'type'     => 'varchar',
-			'length'   => PROPERTY_TOKEN_DEFAULT_LENGTH,
-			'not null' => TRUE,
-			'default'  => '',
-		  );
-		  break;
-		case 'serialized':
-		  $data[$type]['properties'][$name]['schema'] += array(
-			'type'      => 'blob',
-			'serialize' => TRUE,
-			'size'      => PROPERTY_SERIALIZED_DEFAULT_SIZE
-		  );
-		  break;
-		case 'decimal':
-		  $data[$type]['properties'][$name]['schema'] += array(
-			'type'      => 'numeric',
-			'size'      => 'normal',
-			'precision' => PROPERTY_DECIMAL_DEFAULT_PRECISION,
-			'scale'     => PROPERTY_DECIMAL_DEFAULT_SCALE,
-			'not null'  => TRUE,
-			'default'   => PROPERTY_DECIMAL_DEFAULT_DEFAULT,
-		  );
-		  break;
-		case 'integer':
-		  $data[$type]['properties'][$name]['schema'] += array(
-			'type'     => 'int',
-			'not null' => TRUE,
-			'size'     => PROPERTY_INTEGER_DEFAULT_SIZE,
-			'default'  => PROPERTY_INTEGER_DEFAULT_DEFAULT,
-		  );
-		  break;
-		case 'float':
-		  $data[$type]['properties'][$name]['schema'] += array(
-			'type'     => 'float',
-			'not null' => TRUE,
-			'size'     => PROPERTY_FLOAT_DEFAULT_SIZE,
-			'default'  => PROPERTY_FLOAT_DEFAULT_DEFAULT,
-		  );
-		  break;
-		case 'struct':
-		  break;
-		case 'timestamp':
-		  $data[$type]['properties'][$name]['schema'] += array(
-			'type'     => 'int',
-			'not null' => TRUE,
-			'default'  => 0,
-		  );
-		  break;
-		case 'date':
-		  $data[$type]['properties'][$name]['schema'] += array(
-			'type'       => 'datetime',
-			'mysql_type' => 'datetime',
-			'not null'   => FALSE,
-		  );
-		  break;
-		case 'duration':
-		  $data[$type]['properties'][$name]['schema'] += array(
-			'type'     => 'int',
-			'not null' => FALSE,
-			'default'  => 0
-		  );
-		  break;
-		case 'text':
-		  $data[$type]['properties'][$name]['schema'] += array(
-			'type'     => 'text',
-			'size'     => PROPERTY_TEXT_DEFAULT_SIZE,
-			'not null' => TRUE,
-			'default'  => '',
-		  );
-		  break;
-		case 'text_field':
-		  $data[$type]['properties'][$name]['schema'] += array(
-			'type'     => 'varchar',
-			'length'   => PROPERTY_TEXT_FIELD_DEFAULT_LENGTH,
-			'not null' => TRUE,
-			'default'  => '',
-		  );
-		  break;
-	  }
-	}
+  if ($reset) {
+    entity_toolbox_cache_clear_all();
+    $entity_toolbox_info = NULL;
   }
-  $entity_toolbox_entity_info = $data;
-//	cache_set('entity_toolbox_entity_info', $entity_toolbox_entity_info);
-//	}
-//  }
+  else {
+    $entity_toolbox_info = &$drupal_static_fast['entity_toolbox_info'];
+  }
+
+  if (empty($entity_toolbox_info)) {
+    if (($cache = entity_toolbox_cache_get($CACHEKEY)) && (!$reset)) {
+      $entity_toolbox_info = $cache->data;
+    }
+    else {
+      $data    = array();
+      $modules = module_implements($HOOK);
+      foreach ($modules as $module) {
+        $function = $module . '_' . $HOOK;
+        $call     = $function();
+        /**
+         * @var string $t
+         * @var array  $v
+         */
+        foreach ($call as $t => $v) {
+          $v['module'] = !empty($v['module']) ? $v['module'] : $module;
+          $data[$t]    = $v;
+        }
+      }
+      $processed = array();
+      /**
+       * @var string $type
+       *   Matches an entity type.
+       * @var array  $info
+       *   The matching entity type raw info, as retrieved in module_invoke().
+       */
+      foreach ($data as $type => $info) {
+        $args             = array(
+          'entity_type' => $type,
+          'raw_data'    => $info
+        );
+        $processed[$type] = entity_toolbox_info_build($type, $args);
+        $tmp_cached       = entity_toolbox_cache_get($TMP_CACHEKEY);
+        $tmp_cached       = !empty($tmp_cached) ? $tmp_cached->data : array();
+        $tmp_cache        = is_empty($tmp_cached) ? array($type => $processed[$type]) : $tmp_cached + array($type => $processed[$type]);
+        entity_toolbox_cache_set($TMP_CACHEKEY, $tmp_cache);
+      }
+      $entity_toolbox_info = $processed;
+      entity_toolbox_cache_set($CACHEKEY, $entity_toolbox_info);
+    }
+  }
+
   if (isset($entity_type)) {
-	return !empty($entity_toolbox_entity_info[$entity_type]) ? $entity_toolbox_entity_info[$entity_type] : NULL;
+    if ($reset) {
+      return !empty($entity_toolbox_info[$entity_type]) ? $entity_toolbox_info[$entity_type] : NULL;
+    }
+    else {
+      return !empty($entity_toolbox_info[$entity_type]) ? $entity_toolbox_info[$entity_type] : entity_toolbox_get_info($entity_type, $update_N, TRUE);
+    }
   }
   else {
-	return $entity_toolbox_entity_info;
+    return $entity_toolbox_info;
   }
 }
 
 /**
- * Returns a list of entities declared through entity_toolbox.
- * @param null $get
+ * Returns the equivalent of entity_get_info(),except that it does not take
+ * into account entities declared through hook_entity_toolbox_info().
+ * This function avoids infinite loops when reference properties are built.
+ *
+ * @param null|string $entity_type
+ *   The entity type.
+ *
  * @return array
  */
-function entity_toolbox_entity_get_list($get = NULL) {
-
-  $cache_key = 'entity_toolbox_entity_list';
-  if (isset($get)) {
-	if ($get == GET_FIELDABLE) {
-	  $cache_key .= ':' . GET_FIELDABLE;
-	}
-	else {
-	  if ($get == GET_NOT_FIELDABLE) {
-		$cache_key .= ':' . GET_NOT_FIELDABLE;
-	  }
-	}
-  }
-
+function pre_build_entity_get_info($entity_type = NULL) {
   static $drupal_static_fast;
   if (!isset($drupal_static_fast)) {
-	$drupal_static_fast['entity_toolbox_entity_list'] = &drupal_static(__FUNCTION__);
+    $drupal_static_fast['entity_info'] = &drupal_static(__FUNCTION__);
   }
-  $entity_toolbox_entity_list = &$drupal_static_fast['entity_toolbox_entity_list'];
-  if (empty($entity_toolbox_entity_list)) {
-	if ($cache = cache_get($cache_key)) {
-	  $entity_toolbox_entity_list = $cache->data;
-	}
-	else {
-	  $toolbox_info  = entity_toolbox_entity_get_info();
-	  $fieldable     = array();
-	  $not_fieldable = array();
-	  $all           = array();
-	  foreach ($toolbox_info as $type => $info) {
-		if ($info['fieldable']) {
-		  $fieldable[] = $type;
-		}
-		else {
-		  $not_fieldable[] = $type;
-		}
-	  }
-	  $all = array_merge($fieldable, $not_fieldable);
-	  cache_set('entity_toolbox_entity_list', $all);
-	  cache_set('entity_toolbox_entity_list:' . GET_FIELDABLE, $fieldable);
-	  cache_set('entity_toolbox_entity_list:' . GET_NOT_FIELDABLE, $not_fieldable);
-	  if (isset($get)) {
-		if ($get == GET_FIELDABLE) {
-		  $entity_toolbox_entity_list = $fieldable;
-		}
-		else {
-		  if ($get == GET_NOT_FIELDABLE) {
-			$entity_toolbox_entity_list = $not_fieldable;
-		  }
-		}
-	  }
-	  else {
-		$entity_toolbox_entity_list = $all;
-	  }
-	}
+  $entity_info = &$drupal_static_fast['entity_info'];
+  if (empty($entity_info)) {
+    // Modules implementing hook_entity_info.
+    $entity_info_implement = module_implements('entity_info');
+    // Modules implementing hook_entity_toolbox_info.
+    $toolbox_info_implement = module_implements('entity_toolbox_info');
+    // Excludes the toolbox modules from being invoked below.
+    $excludes    = array_intersect($entity_info_implement, $toolbox_info_implement);
+    $includes    = array_diff($entity_info_implement, $excludes);
+    $entity_info = array();
+    foreach ($includes as $include) {
+      $function = $include . '_entity_info';
+      $entity_info += $function();
+    }
+    // Taken from entity_get_info().
+    foreach ($entity_info as $name => $data) {
+      $entity_info[$name] += array(
+        'fieldable'        => FALSE,
+        'controller class' => 'DrupalDefaultEntityController',
+        'static cache'     => TRUE,
+        'field cache'      => TRUE,
+        'load hook'        => $name . '_load',
+        'bundles'          => array(),
+        'view modes'       => array(),
+        'entity keys'      => array(),
+        'translation'      => array(),
+      );
+      $entity_info[$name]['entity keys'] += array(
+        'revision' => '',
+        'bundle'   => '',
+      );
+      foreach ($entity_info[$name]['view modes'] as $view_mode => $view_mode_info) {
+        $entity_info[$name]['view modes'][$view_mode] += array(
+          'custom settings' => FALSE,
+        );
+      }
+      // If no bundle key is provided, assume a single bundle, named after
+      // the entity type.
+      if (empty($entity_info[$name]['entity keys']['bundle']) && empty($entity_info[$name]['bundles'])) {
+        $entity_info[$name]['bundles'] = array($name => array('label' => $entity_info[$name]['label']));
+      }
+      // Prepare entity schema fields SQL info for
+      // DrupalEntityControllerInterface::buildQuery().
+      if (isset($entity_info[$name]['base table'])) {
+        $entity_info[$name]['base table field types']          = drupal_schema_field_types($entity_info[$name]['base table']);
+        $entity_info[$name]['schema_fields_sql']['base table'] = drupal_schema_fields_sql($entity_info[$name]['base table']);
+        if (isset($entity_info[$name]['revision table'])) {
+          $entity_info[$name]['schema_fields_sql']['revision table'] = drupal_schema_fields_sql($entity_info[$name]['revision table']);
+        }
+      }
+    }
   }
-
-  return $entity_toolbox_entity_list;
+  if (empty($entity_type)) {
+    return $entity_info;
+  }
+  elseif (isset($entity_info[$entity_type])) {
+    return $entity_info[$entity_type];
+  }
 }
 
 /**
- * Gets the info declared through entity_toolbox.
- * @TODO : clean the function code.
+ * @return array
+ */
+function entity_toolbox_get_entities() {
+  static $drupal_static_fast;
+  if (!isset($drupal_static_fast)) {
+    $drupal_static_fast['entity_toolbox_entities'] = &drupal_static(__FUNCTION__);
+  }
+  $entity_toolbox_entities = &$drupal_static_fast['entity_toolbox_entities'];
+  if (empty($entity_toolbox_entities)) {
+    $entity_toolbox_entities = array_keys(module_invoke_all('entity_toolbox_info'));
+  }
+
+  return $entity_toolbox_entities;
+}
+
+/**
+ * Returns the module managing an entity type.
  *
- * @param null $entity_type
- *   The machine_name of the entity for which to get the info or NULL to return an array for all the entities.
+ * @param string $entity_type
+ *   The entity type.
  *
- * @param bool $update_N
+ * @return string
+ */
+function entity_get_module_info($entity_type) {
+  $entities = &drupal_static(__FUNCTION__, array());
+  if (empty($entities)) {
+    $modules      = module_implements('entity_toolbox_info');
+    $entity_types = array();
+    foreach ($modules as $module) {
+      $invoke = $module . '_entity_toolbox_info';
+      $types  = array_keys($invoke());
+      $types  = array_fill_keys($types, $module);
+      $entity_types += $types;
+    }
+    $entities = $entity_types;
+  }
+
+  return $entities[$entity_type];
+}
+
+/**
+ * Indicates if an entity type is managed by entity toolbox.
  *
- * @see hook_entity_toolbox_entity_info().
- * @see hook_entity_toolbox_entity_info_alter().
- * @see hook_entity_toolbox_ENTITY_TYPE_properties_update_N().
+ * @param string $entity_type
+ *   The entity type.
+ *
+ * @return bool
+ */
+function is_entity_toolbox_entity($entity_type) {
+  return in_array($entity_type, entity_toolbox_get_entities());
+}
+
+/**
+ * Returns entities classes declared through entity_toolbox.
+ *
+ * @param null|string $entity_type
+ *   The entity type, or NULL to return info on every entity type.
+ * @param null|string $class
+ *   The class type, or NULL to return info on every class type.
+ *
+ * @return array
+ *
+ * @see hook_entity_class_info().
+ * @deprecated
+ */
+function entity_toolbox_get_entity_class_info($entity_type = NULL, $class = NULL) {
+
+}
+
+/**
+ * Returns a cached built schema.
+ * Caching generated schemas is more reliable and avoids performance losses.
+ *
+ * @param null|string $entity_type
+ *   The entity type, or NULL to return every entity type schemas.
+ * @param bool        $reset
+ *   A boolean to clear the cached generated schemas, defaults to FALSE.
  *
  * @return array
  */
-function entity_toolbox_entity_get_info__($entity_type = NULL, &$update_N = FALSE) {
-  entity_toolbox_include('format');
+function entity_toolbox_get_schema($entity_type = NULL, $reset = FALSE) {
+  $CACHEKEY = ENTITY_TOOLBOX__ENTITY_SCHEMA;
 
   /**
-   * We cache entity_toolbox_entity_info since its used very often.
+   * Cached since used very often.
    */
   static $drupal_static_fast;
   if (!isset($drupal_static_fast)) {
-	$drupal_static_fast['entity_toolbox_entity_info'] = &drupal_static(__FUNCTION__);
+    $drupal_static_fast['entity_schema'] = &drupal_static(__FUNCTION__);
+  }
+  $entity_schema = &$drupal_static_fast['entity_schema'];
+
+  //If entity type is specified and that the system does not detect it, then reset the cache and generate the schema.
+  $reset = (isset($entity_type) && !entity_install_get_info($entity_type)) && !$reset;
+
+  if (empty($entity_schema) && !$reset) {
+    if ($cache = entity_toolbox_cache_get($CACHEKEY)) {
+      $entity_schema = $cache->data;
+    }
+    else {
+      $buffer = array();
+      foreach (entity_toolbox_get_info() as $type => $info) {
+        foreach (entity_schemas_build($type) as $schemas) {
+          foreach ($schemas as $schema_name => $schema) {
+            $buffer[$type][$schema_name] = $schema;
+          }
+        }
+      }
+      $entity_schema = $buffer;
+      entity_toolbox_cache_set($CACHEKEY, $entity_schema);
+    }
   }
 
-  $entity_toolbox_entity_info = &$drupal_static_fast['entity_toolbox_entity_info'];
-  if (empty($entity_toolbox_entity_info)) {
-	if ($cache = cache_get('entity_toolbox_entity_info')) {
-	  $entity_toolbox_entity_info = $cache->data;
-	}
-	else {
-	  $data                       = module_invoke_all('entity_toolbox_entity_info');
-	  $entity_toolbox_entity_info = $data;
-	  foreach ($entity_toolbox_entity_info as $type => $info) {
-		if ($info['is_fieldable'] && empty($info['is_bundle_of'])) {
-		  $entity_toolbox_entity_info[$type] += array(
-			'bundle_entity' => $type . '_type',
-		  );
-		  $entity_toolbox_entity_info[$type]['properties'] += entity_toolbox_default_properties($type);
-		}
-		else {
-		  $entity_toolbox_entity_info[$type] += array(
-			'is_bundle_of' => preg_replace('/_type/', '', $type),
-		  );
-		  $entity_toolbox_entity_info[$type]['properties'] += entity_toolbox_default_properties($type, FALSE);
-		}
-		$entity_toolbox_entity_info[$type] = $info;
-	  }
-	  $data = $entity_toolbox_entity_info;
-	  drupal_alter('entity_toolbox_entity_info', $data);
-	  cache_set('entity_toolbox_entity_info', $entity_toolbox_entity_info);
-	}
-	if ($entity_type) {
-	  if (!$update_N) {
-		return !empty($entity_toolbox_entity_info[$entity_type]) ? $entity_toolbox_entity_info[$entity_type] : array();
-	  }
-	  else {
-		$version = intval(entity_toolbox_entity_get_current_version($entity_type));
-		$version = $version == 0 ? 7001 : $version + 1;
-		for ($v = 7001; $v <= $version; $v++) {
-		  $updates = module_invoke_all('entity_toolbox_' . $entity_type . '_properties_update_' . $v);
-		  $entity_toolbox_entity_info[$entity_type]['properties'] += $updates;
-		}
-		return !empty($entity_toolbox_entity_info[$entity_type]) ? $entity_toolbox_entity_info[$entity_type] : array();
-	  }
-	}
-	else {
-	  if (!$update_N) {
-		return $entity_toolbox_entity_info;
-	  }
-	  else {
-		foreach ($entity_toolbox_entity_info as $type => $info) {
-		  $version = entity_toolbox_entity_get_current_version($type);
-		  $version = $version == 0 ? 7001 : $version + 1;
-		  for ($v = 7001; $v <= $version; $v++) {
-			$updates = module_invoke_all('entity_toolbox_' . $type . '_properties_update_' . $v);
-			$entity_toolbox_entity_info[$type]['properties'] += $updates;
-		  }
-		}
-		return $entity_toolbox_entity_info;
-	  }
-	}
-  }
-  else {
-	if ($entity_type) {
-	  if (!$update_N) {
-		return !empty($entity_toolbox_entity_info[$entity_type]) ? $entity_toolbox_entity_info[$entity_type] : array();
-	  }
-	  else {
-		$version = intval(entity_toolbox_entity_get_current_version($entity_type));
-		$version = $version == 0 ? 7001 : $version + 1;
-		for ($v = 7001; $v <= $version; $v++) {
-		  $updates = module_invoke_all('entity_toolbox_' . $entity_type . '_properties_update_' . $v);
-		  $entity_toolbox_entity_info[$entity_type]['properties'] += $updates;
-		}
-		return !empty($entity_toolbox_entity_info[$entity_type]) ? $entity_toolbox_entity_info[$entity_type] : array();
-	  }
-	}
-	else {
-	  if (!$update_N) {
-		return $entity_toolbox_entity_info;
-	  }
-	  else {
-		foreach ($entity_toolbox_entity_info as $type => $info) {
-		  $version = entity_toolbox_entity_get_current_version($type);
-		  $version = $version == 0 ? 7001 : $version + 1;
-		  for ($v = 7001; $v <= $version; $v++) {
-			$updates = module_invoke_all('entity_toolbox_' . $type . '_properties_update_' . $v);
-			$entity_toolbox_entity_info[$type]['properties'] += $updates;
-		  }
-		}
-		return $entity_toolbox_entity_info;
-	  }
-	}
-  }
+  return isset($entity_type) ? $entity_schema[$entity_type] : $entity_schema;
 }
 
 /**
- * Clear the cache for entity_toolbox_entity_info.
- */
-function entity_toolbox_info_cache_clear() {
-  drupal_static_reset('entity_toolbox_entity_get_info');
-  cache_clear_all('entity_toolbox_entity_info', 'cache');
-}
-
-/**
- * Returns the id key of an entity_type.
- * @param null $entity_type
- * @return array
- */
-function entity_toolbox_entity_get_id_key($entity_type = NULL) {
-  /**
-   * We cache entity_toolbox_entity_info since its used very often.
-   */
-  static $drupal_static_fast;
-  if (!isset($drupal_static_fast)) {
-	$drupal_static_fast['entity_info_id_keys'] = &drupal_static(__FUNCTION__);
-  }
-
-  $entity_info_id_keys = &$drupal_static_fast['entity_info_id_keys'];
-  if (empty($entity_info_id_keys)) {
-	if ($cache = cache_get('entity_info_id_keys')) {
-	  $entity_info_id_keys = $cache->data;
-	}
-	else {
-	  $keys        = array();
-	  $entity_info = entity_get_info();
-	  foreach ($entity_info as $type => $info) {
-		$keys[$type] = $info['entity keys']['id'];
-	  }
-	  $entity_info_id_keys = $keys;
-	  cache_set('entity_info_id_keys', $keys);
-	}
-  }
-  return isset($entity_type) ? $entity_info_id_keys[$entity_type] : $entity_info_id_keys;
-}
-
-/**
- * Returns the list of entities managed by a module.
+ * Returns the entity groups declared.
  *
- * @param      $module
- *   The machine_name of the module for which to get the info or NULL to return an array for all the modules.
+ * @param null|string $group
+ *   The entity group name or NULL to return all groups.
  *
- * @return array
- */
-function entity_toolbox_module_entities_get_list($module = NULL) {
-  /**
-   * We cache entity_toolbox_module_entities_get_list since its used very often.
-   */
-  static $drupal_static_fast;
-  if (!isset($drupal_static_fast)) {
-	$drupal_static_fast['entity_toolbox_module_entities_list'] = &drupal_static(__FUNCTION__);
-  }
-  $entity_toolbox_module_entities_list = &$drupal_static_fast['entity_toolbox_module_entities_list'];
-  if (empty($entity_toolbox_module_entities_list)) {
-	if ($cache = cache_get('entity_toolbox_module_entities_list')) {
-	  $entity_toolbox_module_entities_list = $cache->data;
-	}
-	else {
-	  $list = array();
-	  $info = entity_toolbox_entity_get_info();
-	  foreach ($info as $entity_type => $i) {
-		$module          = $i['module'];
-		$list[$module][] = $entity_type;
-	  }
-	  $entity_toolbox_module_entities_list = $list;
-	  cache_set('entity_toolbox_module_entities_list', $entity_toolbox_module_entities_list);
-	}
-  }
-  if (isset($module)) {
-	return $entity_toolbox_module_entities_list[$module];
-  }
-  else {
-	return $entity_toolbox_module_entities_list;
-  }
-}
-
-/**
- * Clear the cache for entity_toolbox_entity_info.
- */
-function entity_toolbox_module_entities_list_cache_clear() {
-  drupal_static_reset('entity_toolbox_module_entities_list');
-  cache_clear_all('entity_toolbox_module_entities_list', 'cache');
-}
-
-/**
- * Returns the entity groups info declared.
- *
- * @param null $group
- *   The entity group name or NULL to get all.
  * @return array
  *
  * @see hook_entity_toolbox_entity_group_info().
  */
-function entity_toolbox_entity_group_info($group = NULL) {
+function entity_toolbox_entity_group_get_info($group = NULL) {
+  $HOOK     = 'entity_group_info';
+  $CACHEKEY = ENTITY_TOOLBOX__ENTITY_GROUP_INFO;
+
   /**
-   * We cache entity_toolbox_entity_info since its used very often.
+   * Cached since its used very often.
    */
   static $drupal_static_fast;
   if (!isset($drupal_static_fast)) {
-	$drupal_static_fast['entity_toolbox_entity_groups'] = &drupal_static(__FUNCTION__);
+    $drupal_static_fast['entity_groups'] = &drupal_static(__FUNCTION__);
   }
 
-  $entity_toolbox_entity_groups = &$drupal_static_fast['entity_toolbox_entity_groups'];
-  if (empty($entity_toolbox_entity_groups)) {
-	if ($cache = cache_get('entity_toolbox_entity_groups')) {
-	  $entity_toolbox_entity_groups = $cache->data;
-	}
-	else {
-	  $data = module_invoke_all('entity_toolbox_entity_group_info');
-	  drupal_alter('entity_toolbox_entity_group_info', $data);
-	  $entity_toolbox_entity_groups = $data;
-	  cache_set('entity_toolbox_entity_groups', $entity_toolbox_entity_groups);
-	}
+  $entity_groups = &$drupal_static_fast['entity_groups'];
+  if (empty($entity_groups)) {
+    if ($cache = entity_toolbox_cache_get($CACHEKEY)) {
+      $entity_groups = $cache->data;
+    }
+    else {
+      $groups = array();
+      $data   = module_invoke_all($HOOK);
+      drupal_alter($HOOK, $data);
+      $groups_entities = array();
+      $toolbox_invoke  = module_invoke_all('entity_toolbox_info');
+      drupal_alter('entity_toolbox_info', $toolbox_invoke);
+      foreach ($toolbox_invoke as $entity_type => $info) {
+        if (!empty($info['group'])) {
+          $groups_entities[$info['group']][] = $entity_type;
+        }
+      }
+      foreach ($data as $name => $group_info) {
+        $group_info['entity_types'] = !empty($groups_entities[$name]) ? $groups_entities[$name] : array();
+        foreach (entity_toolbox_field_category_group_get_info() as $field_category_group => $field_category_group_info) {
+          if ($field_category_group_info['group'] == $name) {
+            $group_info['field_category_groups'][$field_category_group] = $field_category_group_info;
+          }
+        }
+        $groups[$name] = $group_info;
+      }
+      $entity_groups = $groups;
+      entity_toolbox_cache_set($CACHEKEY, $entity_groups);
+    }
   }
 
-  return isset($group) ? $entity_toolbox_entity_groups[$group] : $entity_toolbox_entity_groups;
+  return isset($group) ? $entity_groups[$group] : $entity_groups;
 
 }
 
-function entity_toolbox_entity_group_entities_info($group = NULL) {
+/**
+ * Returns a group attached entity types.
+ *
+ * @param null|string $group
+ *   The group name.
+ *
+ * @return array
+ *
+ * @see hook_group_attach_info().
+ * @deprecated
+ */
+function entity_toolbox_entity_group_attach_get_info($group = NULL) {
+  $CACHEKEY = ENTITY_TOOLBOX__ENTITY_GROUP_ATTACH_INFO;
+
   /**
-   * We cache entity_toolbox_entity_info since its used very often.
+   * Cached since its used very often.
    */
   static $drupal_static_fast;
   if (!isset($drupal_static_fast)) {
-	$drupal_static_fast['entity_toolbox_entity_group_entities'] = &drupal_static(__FUNCTION__);
+    $drupal_static_fast['group_attach_info'] = &drupal_static(__FUNCTION__);
   }
 
-  $entity_toolbox_entity_group_entities = &$drupal_static_fast['entity_toolbox_entity_group_entities'];
-  if (empty($entity_toolbox_entity_group_entities)) {
-	if ($cache = cache_get('entity_toolbox_entity_group_entities')) {
-	  $entity_toolbox_entity_group_entities = $cache->data;
-	}
-	else {
-	  $group_info   = entity_toolbox_entity_group_info();
-	  $toolbox_info = entity_toolbox_entity_get_info();
-	  $groups       = array();
-	  foreach ($group_info as $group_ => $info) {
-		$groups[$group_] = array();
-	  }
-	  foreach ($toolbox_info as $type => $info) {
-		if (!empty($info['group']) && array_key_exists($info['group'], $groups)) {
-		  $groups[$info['group']][] = $type;
-		}
-	  }
-	  $entity_toolbox_entity_group_entities = $groups;
-	  cache_set('entity_toolbox_entity_group_entities', $entity_toolbox_entity_group_entities);
-	}
+  $group_attach_info = &$drupal_static_fast['group_attach_info'];
+  if (empty($group_attach_info)) {
+    if ($cache = entity_toolbox_cache_get($CACHEKEY)) {
+      $group_attach_info = $cache->data;
+    }
+    else {
+      $groups = array();
+      $data   = module_invoke_all('entity_group_attach_info');
+      drupal_alter('entity_group_attach_info', $data);
+      foreach ($data as $entity_type => $group_name) {
+        $groups[$group_name] = $entity_type;
+      }
+      $group_attach_info = $groups;
+      entity_toolbox_cache_set($CACHEKEY, $group_attach_info);
+    }
   }
 
-  return isset($group) ? $entity_toolbox_entity_group_entities[$group] : $entity_toolbox_entity_group_entities;
+  return isset($group) ? $group_attach_info[$group] : $group_attach_info;
 }
 
 /**
- * Returns the bundles of an entity_type.
+ * Returns info on a field category group.
  *
- * @param null $entity_type
- *  The machine_name of the entity for which to get the info or NULL to return an array for all the entities.
- *
- * @return array
- */
-function entity_toolbox_entity_get_bundles($entity_type = NULL) {
-  static $drupal_static_fast;
-  if (!isset($drupal_static_fast)) {
-	$drupal_static_fast['entities_bundles'] = &drupal_static(__FUNCTION__);
-  }
-
-  $entities_bundles = &$drupal_static_fast['entities_bundles'];
-  if (empty($entities_bundles)) {
-	if ($cache = cache_get('entities_bundles')) {
-	  $entities_bundles = $cache->data;
-	}
-	else {
-	  $list         = array();
-	  $toolbox_info = entity_toolbox_entity_get_info();
-	  foreach ($toolbox_info as $type => $info) {
-		if (!empty($info['bundle of'])) {
-		  $list[$info['bundle of']][] = $type;
-		}
-	  }
-	  $entities_bundles = $list;
-	  cache_set('entities_bundles', $entities_bundles);
-	}
-  }
-
-  if (isset($entity_type)) {
-	return $entities_bundles[$entity_type];
-  }
-  else {
-	return $entities_bundles;
-  }
-}
-
-/**
- * Updates the properties version of an entity_type.
- *
- * @param      $entity_type
- * @param null $current_version
- */
-function entity_toolbox_entity_version_update($entity_type, $current_version = NULL) {
-  $version = isset($current_version) ? $current_version : entity_toolbox_entity_get_current_version($entity_type);
-  $query   = db_update('entity_toolbox_versions')
-	->fields(array('current_version' => $version + 1))
-	->condition('entity_type', $entity_type)
-	->execute();
-}
-
-/**
- * Returns the current entity_type properties version.
- *
- * @param null $entity_type
- *   The machine_name of the entity for which to get the info or NULL to return an array for all the entities.
- *
- * @return integer
- */
-function entity_toolbox_entity_get_current_version($entity_type = NULL) {
-  static $drupal_static_fast;
-  if (!isset($drupal_static_fast)) {
-	$drupal_static_fast['entity_toolbox_current_versions'] = &drupal_static(__FUNCTION__);
-  }
-  $entity_toolbox_current_versions = &$drupal_static_fast['entity_toolbox_current_versions'];
-  if (empty($entity_toolbox_current_versions)) {
-	if ($cache = cache_get('entity_toolbox_current_versions')) {
-	  $entity_toolbox_current_versions = $cache->data;
-	}
-	else {
-	  $toolbox_info = entity_toolbox_entity_get_info();
-	  $query        = db_select('entity_toolbox_versions', 'e')
-		->fields('e', array('entity_type', 'current_version'));
-	  $results      = $query->execute();
-	  $versions     = array();
-	  while ($result = $results->fetchAssoc()) {
-		$versions[$result['entity_type']] = $result['current_version'];
-	  }
-	  foreach ($toolbox_info as $type => $type_info) {
-		if (!array_key_exists($type, $versions)) {
-		  $query_2 = db_insert('entity_toolbox_versions')
-			->fields(array(
-			  'entity_type'     => $type,
-			  'current_version' => 0
-			))
-			->execute();
-		}
-	  }
-	  $entity_toolbox_current_versions = $versions;
-	  cache_set('entity_toolbox_current_versions', $entity_toolbox_current_versions);
-	}
-  }
-  if (isset($entity_type)) {
-	return $entity_toolbox_current_versions[$entity_type];
-  }
-  else {
-	return $entity_toolbox_current_versions;
-  }
-}
-
-/**
- * Returns an array of an entity_type properties.
- *
- * @param null $entity_type
- *   The entity type machine_name or NULL to return all entities properties.
- *
- * @param bool $update_N
- */
-function entity_toolbox_entity_properties_get_info($entity_type = NULL, $update_N = FALSE) {
-  $properties = array();
-  foreach (entity_toolbox_entity_get_info() as $type => $info) {
-	foreach ($info['properties'] as $name => $property) {
-
-	}
-  }
-}
-
-/**
- * Returns an entity_type properties update info range.
- *
- * @param      $entity_type
- *   The entity_type for which to get the updates.
- * @param null $start
- *   The update to start getting the info from or NULL to start at 7001 (first update).
- * @param null $end
- *   The update to end getting the info from or NULL to end at infinite (the loop will stop as soon as the hook_call returns an empty result).
+ * @param null|string $group
+ *   The field category group name.
  *
  * @return array
  *
- * @see hook_entity_toolbox_ENTITY_TYPE_properties_update_N().
- */
-function entity_toolbox_entity_get_properties_update_info($entity_type, $start = NULL, $end = NULL) {
-  $updates = array();
-  $start   = isset($start) ? $start : 7001;
-  if (!isset($end)) {
-	$count = $start;
-	$keep  = TRUE;
-	while ($keep) {
-	  $update = module_invoke_all('entity_toolbox_' . $entity_type . '_properties_update_' . $count);
-	  $keep   = !empty($update) ? TRUE : FALSE;
-	  if ($keep) {
-		$updates[$count] = $update;
-		$count++;
-	  }
-	}
-  }
-  else {
-	$keep = TRUE;
-	for ($i = $start; $i <= $end && $keep == TRUE; $i++) {
-	  $update = module_invoke_all('entity_toolbox_' . $entity_type . '_properties_update_' . $i);
-	  $keep   = !empty($update) ? TRUE : FALSE;
-	  if ($keep) {
-		$updates[$i] = $update;
-	  }
-	}
-  }
-
-  return $updates;
-}
-
-/**
- * @param null $entity_type
- * @param null $name
- */
-function entity_toolbox_entity_property_settings_get_info($entity_type = NULL, $name = NULL) {
-
-}
-
-/**
- * Returns the system path of an entity_type.
- *
- * @param $entity_type
- * @param $alias
- *
- * @return string
- */
-function entity_toolbox_entity_get_path($entity_type, $alias) {
-  $toolbox_info = entity_toolbox_entity_get_info($entity_type);
-
-  if ($alias == 'root') {
-	return $toolbox_info['paths']['root'];
-  }
-  else {
-	$aliases = array_keys($toolbox_info['paths']);
-	$search  = array_search($alias, $aliases);
-	$path    = $toolbox_info['paths']['root'];
-	for ($i = 1; $i <= $search; $i++) {
-	  $path .= '/' . $toolbox_info['paths'][$aliases[$i]];
-	}
-	return $path;
-  }
-}
-
-/**
- * @TODO : add_cache
- * @TODO : add_bundles
- * @TODO : add dynamic properties getters/setters.
- *
- * Returns the data for hook_entity_info().
- *
- * @param $entity_type
- *
- * @return mixed
- *
- * @see hook_entity_toolbox_entity_info().
- */
-function entity_toolbox_entity_info_build($entity_type) {
-  entity_toolbox_include('format');
-  $toolbox_info        = entity_toolbox_entity_get_info($entity_type);
-  $build[$entity_type] = array(
-	'label'            => t(entity_type2entity_label($entity_type)),
-	'plural label'     => t(entity_type2entity_label_plural($entity_type)),
-	'entity class'     => entity_type2entity_class($entity_type),
-	'controller class' => entity_type2entity_controller_class($entity_type),
-	'base table'       => $toolbox_info['base table'],
-	'fieldable'        => $toolbox_info['fieldable'],
-	'entity keys'      => array(),
-	'access callback'  => $entity_type . '_access',
-	'module'           => $toolbox_info['module'],
-	'admin ui'         => array(
-	  'path'             => $toolbox_info['paths']['root'] . '/' . $toolbox_info['paths']['admin'],
-	  'file'             => $toolbox_info['module'] . '.' . $entity_type . '.admin.inc',
-	  'controller class' => entity_type2entity_ui_controller_class($entity_type),
-	),
-  );
-  if ($toolbox_info['fieldable']) {
-	$build[$entity_type]['label callback']            = 'entity_class_label';
-	$build[$entity_type]['uri callback']              = 'entity_class_uri';
-	$build[$entity_type]['creation callback']         = $entity_type . '_create';
-	$build[$entity_type]['bundles']                   = array();
-	$build[$entity_type]['bundle keys']               = array(
-	  'bundle' => $toolbox_info['bundle_property'],
-	);
-	$build[$entity_type]['admin ui']['menu wildcard'] = '%' . $entity_type;
-//	$build[$entity_type]['inline entity form']['controller'] = entity_type2entity_class($entity_type) . 'InlineEntityFormController';
-	$build[$entity_type]['inline entity form']['controller'] = 'EntityToolboxEntityInlineEntityFormController';
-  }
-  else {
-	$build[$entity_type]['exportable'] = TRUE;
-	$build[$entity_type]['bundle of']  = $toolbox_info['bundle of'];
-  }
-  foreach ($toolbox_info['properties'] as $name => $property) {
-	if (!empty($property['key'])) {
-	  $build[$entity_type]['entity keys'][$property['key']] = $name;
-	}
-  }
-  return $build;
-}
-
-/**
- * @param $module
- * @return array
- */
-function entity_toolbox_module_entities_info_build($module) {
-  $info = array();
-  $list = entity_toolbox_module_entities_get_list($module);
-  foreach ($list as $entity_type) {
-	foreach (entity_toolbox_entity_info_build($entity_type) as $type => $spec) {
-	  $info[$type] = $spec;
-	}
-  }
-  return $info;
-}
-
-/**
- * @param $entity_type
- * @param $entity_info
- * @return mixed
- */
-function entity_toolbox_entity_info_alter_build(&$entity_info, $entity_type) {
-  entity_toolbox_include('extend');
-  //@TODO : add check if table exists
-  if ($entity_info[$entity_type]['fieldable']) {
-	if (db_table_exists($entity_type . '_type')) {
-	  foreach (entity_get_types($entity_type) as $bundle => $bundle_info) {
-		$path                                                     = entity_toolbox_entity_get_path($entity_type . '_type', 'manage') . '/%' . $entity_type . '_type';
-		$real_path                                                = entity_toolbox_entity_get_path($entity_type . '_type', 'manage') . '/' . $bundle;
-		$entity_info[$entity_type]['bundles'][$bundle_info->type] = array(
-		  'label' => $bundle_info->label,
-		  'admin' => array(
-			'path'             => $path,
-			'real path'        => $real_path,
-			'bundle argument'  => array_search($bundle_info->type, explode('/', entity_toolbox_entity_get_path($entity_type . '_type', 'manage') . '/' . $bundle_info->type)),
-			'access arguments' => array("access administration pages"),
-		  ),
-		);
-	  }
-	}
-  }
-//  foreach (entity_toolbox_entity_get_properties_update_info($entity_type, NULL, entity_toolbox_entity_get_current_version($entity_type)) as $name => $update) {
-//	$entity_info['entity keys'][$update['key']] = $name;
-//  }
-
-  return $entity_info;
-}
-
-/**
- * Returns the entity_type schema.
- *
- * @param $entity_type
- *
- * @TODO : set_cache
- *
- * @return array
- */
-function entity_toolbox_entity_schema_build($entity_type) {
-  entity_toolbox_include('format');
-  $toolbox_info_all  = entity_toolbox_entity_get_info();
-  $toolbox_info      = entity_toolbox_entity_get_info($entity_type);
-  $schema            = array();
-  $schema_properties = array();
-  foreach ($toolbox_info['properties'] as $name => $property) {
-	if (!empty($property['schema field']) || !empty($property['relation_table'])) {
-	  $schema_properties[$name] = $property;
-	}
-  }
-  if ($toolbox_info['fieldable']) {
-	$schema[$toolbox_info['base table']] = array(
-	  'description' => 'The base table for ' . $entity_type . ' entities.',
-	  'fields'      => array(),
-	  'primary key' => array(),
-	  'unique keys' => array(),
-	  'indexes'     => array(),
-	);
-	foreach ($schema_properties as $name => $schema_property) {
-	  if (!empty($schema_property['schema field']) && empty($schema_property['relation_table'])) {
-		$schema[$toolbox_info['base table']]['fields'][$schema_property['schema field']] = $schema_property['schema'];
-		if (!empty($schema_property['unique']) && $schema_property['unique']) {
-		  $schema[$toolbox_info['base table']]['unique keys'][$schema_property['schema field']] = array($schema_property['schema field']);
-		}
-		if ($schema_property['type'] == 'id') {
-		  $schema[$toolbox_info['base table']]['primary key'] = array($schema_property['schema field']);
-		}
-		if ($name == $toolbox_info['bundle_property']) {
-		  $schema[$toolbox_info['base table']]['indexes'][$schema_property['schema field']] = array($schema_property['schema field']);
-		}
-		if (($schema_property['type'] == 'reference') || ($schema_property['type'] == 'parent') && $schema_property['reference'] != $entity_type) {
-		  if (empty($schema_property['multiple'])) {
-			$r_type   = $schema_property['reference'];
-			$r_info   = isset($toolbox_info_all[$r_type]) ? $toolbox_info_all[$r_type] : entity_get_info($r_type);
-			$r_key_id = isset($r_info['id_property']) ? $r_info['id_property'] : $r_info['entity keys']['id'];
-			$schema[$toolbox_info['base table']]['fields'][$schema_property['schema field']] += array(
-			  'foreign keys' => array(
-				$r_info['base table'] => array(
-				  'table'   => $r_info['base table'],
-				  'columns' => array($schema_property['schema field'] => $r_key_id),
-				),
-			  )
-			);
-		  }
-		}
-	  }
-	  else {
-		if (requires_relation_table($schema_property)) {
-		  $r_type                                              = $schema_property['reference'];
-		  $r_info                                              = isset($toolbox_info_all[$r_type]) ? $toolbox_info_all[$r_type] : entity_get_info($r_type);
-		  $self_id_key                                         = $schema_property['relation_table']['keys']['self'];
-		  $r_id_key                                            = $schema_property['relation_table']['keys']['reference'];
-		  $schema[$schema_property['relation_table']['table']] = array(
-			'description' => 'A relation table between a ' . $entity_type . ' and a ' . $r_type,
-			'fields'      => array(
-			  $self_id_key => array(
-				'type'     => 'int',
-				'not null' => TRUE,
-				'default'  => 0
-			  ),
-			  $r_id_key    => array(
-				'type'     => 'int',
-				'not null' => TRUE,
-				'default'  => 0
-			  ),
-			)
-		  );
-		}
-	  }
-	}
-	if ($toolbox_info['has_revisions']) {
-	  $revision_table                             = $entity_type . '_revision';
-	  $schema[$toolbox_info['base table']]['vid'] = array(
-		'description' => 'The current {' . $entity_type . '}.vid version identifier.',
-		'type'        => 'int',
-		'unsigned'    => TRUE,
-		'not null'    => TRUE,
-		'default'     => 0,
-	  );
-	  $schema[$revision_table]                    = array(
-		'description' => 'Keeps track of ' . entity_type2entity_label_plural($entity_type),
-		'fields'      => array(
-		  $toolbox_info['id_property'] => array(
-			'type'        => 'int',
-			'unsigned'    => TRUE,
-			'not null'    => TRUE,
-			'default'     => 0,
-			'description' => 'Unique ' . $entity_type . ' id (entity id).',
-		  ),
-		  'vid'                        => array(
-			'description' => 'The current {' . $entity_type . '_revision}.vid version identifier.',
-			'type'        => 'serial',
-			'unsigned'    => TRUE,
-			'not null'    => TRUE,
-		  ),
-		  'changed'                    => array(
-			'description' => 'The Unix timestamp when the ' . $entity_type . ' was most recently saved.',
-			'type'        => 'int',
-			'not null'    => TRUE,
-			'default'     => 0,
-		  ),
-		),
-		'primary key' => array($toolbox_info['id_property'], 'vid'),
-	  );
-	}
-  }
-  else {
-	echo '';
-	$schema[$toolbox_info['base table']] = array(
-	  'description' => 'Stores information about defined ' . $toolbox_info['bundle of'] . ' types.',
-	  'fields'      => array(),
-	  'primary key' => array(),
-	  'unique keys' => array(),
-	);
-	foreach ($schema_properties as $name => $schema_property) {
-	  if (empty($property['relation_table'])) {
-		$schema[$toolbox_info['base table']]['fields'][$schema_property['schema field']] = $schema_property['schema'];
-		if (!empty($schema_property['unique']) && $schema_property['unique']) {
-		  $schema[$toolbox_info['base table']]['unique keys'][$schema_property['schema field']] = array($schema_property['schema field']);
-		}
-		if ($schema_property['type'] == 'id') {
-		  $schema[$toolbox_info['base table']]['primary key'] = array($schema_property['schema field']);
-		}
-		if ($schema_property['type'] == 'reference' || $schema_property['type'] == 'parent' && $schema_property['reference'] != $entity_type) {
-		  $r_type   = $schema_property['reference'];
-		  $r_info   = isset($toolbox_info_all[$r_type]) ? $toolbox_info_all[$r_type] : entity_get_info($r_type);
-		  $r_key_id = isset($r_info['id_property']) ? $r_info['id_property'] : $r_info['entity keys']['id'];
-		  $schema[$toolbox_info['base table']]['fields'][$schema_property['schema field']] += array(
-			'foreign keys' => array(
-			  $r_info['base table'] => array(
-				'table'   => $r_info['base table'],
-				'columns' => array($schema_property['schema field'] => $r_key_id),
-			  ),
-			)
-		  );
-		}
-	  }
-	}
-	if ($toolbox_info['exportable']) {
-	  $schema[$toolbox_info['base table']]['fields'] += entity_exportable_schema_fields();
-	}
-  }
-
-  if (empty($schema[$toolbox_info['base table']]['unique keys'])) {
-	unset($schema[$toolbox_info['base table']]['unique keys']);
-  }
-
-  return $schema;
-}
-
-/**
- * @param $entity_type
- */
-function entity_toolbox_entity_schema_alter_build($entity_type) {
-  $alter = array(
-	'add_field'  => array(),
-	'drop_field' => array()
-  );
-  foreach (entity_toolbox_entity_get_properties_update_info($entity_type) as $name => $update) {
-
-  }
-}
-
-/**
- * Returns the schema builds for every entity_type managed by a module.
- *
- * @param $module
- * @return array
- */
-function entity_toolbox_module_entities_schema_build($module) {
-  $schema = array();
-  $list   = entity_toolbox_module_entities_get_list($module);
-  foreach ($list as $entity_type) {
-	foreach (entity_toolbox_entity_schema_build($entity_type) as $table => $spec) {
-	  $schema[$table] = $spec;
-	}
-  }
-  return $schema;
-}
-
-/**
- * Returns an entity_type properties build for hook_entity_properties_info().
- *
- * @param null $entity_type
- *  The machine_name of the entity for which to get the info or NULL to return an array for all the entities.
- *
- * @return array
- */
-function entity_toolbox_entity_properties_info_build($entity_type = NULL) {
-  /**
-   * We cache entities_properties_info since its used very often.
-   */
-  static $drupal_static_fast;
-  if (!isset($drupal_static_fast)) {
-	$drupal_static_fast['entities_properties_info'] = &drupal_static(__FUNCTION__);
-  }
-  $entities_properties_info = &$drupal_static_fast['entities_properties_info'];
-  if (empty($entities_properties_info)) {
-	if ($cache = cache_get('entities_properties_info')) {
-	  $entities_properties_info = $cache->data;
-	}
-	else {
-	  $toolbox_info             = entity_toolbox_entity_get_info(NULL, FALSE);
-	  $entities_properties_info = array();
-	  foreach ($toolbox_info as $type => $type_info) {
-		foreach ($type_info['properties'] as $name => $property) {
-		  $p_type = toolbox_property_type2entity_property_type($property['type']);
-		  if (!is_property_reference($property['type'])) {
-			$entities_properties_info[$type][$name] = array(
-			  'label'               => $property['title'],
-			  'description'         => !empty($property['description']) ? $property['description'] : NULL,
-			  'type'                => $p_type != FALSE ? $p_type : $property['reference'],
-			  'options list'        => !empty($property['field']['options list']) ? $property['field']['options list'] : NULL,
-			  'getter callback'     => !empty($property['callbacks']['getter']) ? $property['callbacks']['getter'] : NULL,
-			  'setter callback'     => !empty($property['callbacks']['setter']) ? $property['callbacks']['setter'] : NULL,
-			  'validation callback' => !empty($property['callbacks']['validation']) ? $property['callbacks']['validation'] : NULL,
-			  'access callback'     => !empty($property['callbacks']['access']) ? $property['callbacks']['access'] : NULL,
-			  'setter permission'   => !empty($property['permission']['setter']) ? $property['permission']['setter'] : NULL,
-			  'schema field'        => !empty($property['schema field']) ? $property['schema field'] : NULL,
-			  'required'            => !empty($property['required create']) ? $property['required create'] : NULL,
-			  'entity views field'  => !empty($property['expose']['views']) ? $property['expose']['views'] : FALSE,
-			  'translatable'        => !empty($property['translatable']) ? $property['translatable'] : FALSE,
-			);
-		  }
-		  else {
-			if (!requires_relation_table($property)) {
-			  $entities_properties_info[$type][$name]                     = array(
-				'label'               => $property['title'],
-				'description'         => !empty($property['description']) ? $property['description'] : NULL,
-				'type'                => $property['reference'],
-				'getter callback'     => !empty($property['callbacks']['getter']) ? $property['callbacks']['getter'] : 'entity_get_attributes',
-				'setter callback'     => !empty($property['callbacks']['setter']) ? $property['callbacks']['setter'] : 'entity_set_attributes',
-				'validation callback' => !empty($property['callbacks']['validation']) ? $property['callbacks']['validation'] : NULL,
-				'access callback'     => !empty($property['callbacks']['access']) ? $property['callbacks']['access'] : NULL,
-				'setter permission'   => !empty($property['permission']['setter']) ? $property['permission']['setter'] : NULL,
-				'entity views field'  => !empty($property['expose']['views']) ? $property['expose']['views'] : FALSE,
-				'translatable'        => !empty($property['translatable']) ? $property['translatable'] : FALSE,
-				'computed'            => TRUE,
-				'required'            => !empty($property['required create']) ? $property['required create'] : NULL,
-				'clear'               => array($property['schema field'])
-			  );
-			  $entities_properties_info[$type][$property['schema field']] = array(
-				'label'             => $property['title'],
-				'description'       => !empty($property['description']) ? $property['description'] : NULL,
-				'type'              => 'integer',
-				'setter callback'   => 'entity_property_verbatim_set',
-				'setter permission' => 'access administration pages',
-				'schema field'      => !empty($property['schema field']) ? $property['schema field'] : NULL,
-				'clear'             => array($name)
-			  );
-			}
-			else {
-			  if (requires_relation_table($property)) {
-				$tp                                     = 'list<' . $property['reference'] . '>';
-				$entities_properties_info[$type][$name] = array(
-				  'label'               => $property['title'],
-				  'description'         => !empty($property['description']) ? $property['description'] : NULL,
-				  'type'                => $tp,
-				  'getter callback'     => !empty($property['callbacks']['getter']) ? $property['callbacks']['getter'] : 'entity_get_attributes',
-				  'setter callback'     => !empty($property['callbacks']['setter']) ? $property['callbacks']['setter'] : 'entity_set_attributes',
-				  'validation callback' => !empty($property['callbacks']['validation']) ? $property['callbacks']['validation'] : NULL,
-				  'access callback'     => !empty($property['callbacks']['access']) ? $property['callbacks']['access'] : NULL,
-				  'setter permission'   => !empty($property['permission']['setter']) ? $property['permission']['setter'] : NULL,
-				  'entity views field'  => !empty($property['expose']['views']) ? $property['expose']['views'] : FALSE,
-				  'translatable'        => !empty($property['translatable']) ? $property['translatable'] : FALSE,
-				  'computed'            => TRUE,
-				  'required'            => !empty($property['required create']) ? $property['required create'] : NULL,
-				);
-			  }
-			}
-		  }
-
-		  foreach ($entities_properties_info[$type][$name] as $key => $item) {
-			if ($item === NULL) {
-			  unset($entities_properties_info[$type][$name][$key]);
-			}
-		  }
-		}
-	  }
-	  cache_set('entities_properties_info', $entities_properties_info);
-	}
-  }
-
-  if (isset($entity_type)) {
-	return $entities_properties_info[$entity_type];
-  }
-  else {
-	return $entities_properties_info;
-  }
-}
-
-/**
- * @param $module
- * @return array
- */
-function entity_toolbox_module_entities_properties_info_build($module) {
-  $infos = array();
-  $list  = entity_toolbox_module_entities_get_list($module);
-  foreach ($list as $entity_type) {
-	foreach (entity_toolbox_entity_properties_info_build($entity_type) as $property => $info) {
-	  $infos[$entity_type][$property] = $info;
-	}
-  }
-  return $infos;
-}
-
-/**
- * @param null $entity_type
- * @return array
- */
-function entity_toolbox_entity_permissions_build($entity_type = NULL) {
-  /**
-   * We cache entities_permissions since its used very often.
-   */
-  static $drupal_static_fast;
-  if (!isset($drupal_static_fast)) {
-	$drupal_static_fast['entities_permissions'] = &drupal_static(__FUNCTION__);
-  }
-  $entities_permissions = &$drupal_static_fast['entities_permissions'];
-  if (empty($entities_permissions)) {
-	if ($cache = cache_get('entities_permissions')) {
-	  $entities_permissions = $cache->data;
-	}
-	else {
-	  entity_toolbox_include('format');
-	  $toolbox_info = entity_toolbox_entity_get_info();
-	  $permissions  = array();
-	  foreach ($toolbox_info as $type => $type_info) {
-		if ($type_info['fieldable']) {
-		  $key                      = 'administer ' . entity_machine_name_single2plural($type);
-		  $title                    = 'Administer ' . entity_machine_name_single2plural($type);
-		  $description              = 'Edit and delete all ' . entity_machine_name_single2plural($type);
-		  $permissions[$type][$key] = array(
-			'title'       => t($title),
-			'description' => t($description),
-		  );
-		}
-		else {
-		  $key                      = 'administer ' . entity_machine_name_single2plural($type);
-		  $title                    = 'Administer ' . entity_machine_name_single2plural($type);
-		  $description              = 'Create and delete fields for ' . entity_machine_name_single2plural($type) . ' and set their permissions.';
-		  $permissions[$type][$key] = array(
-			'title'       => t($title),
-			'description' => t($description),
-		  );
-		}
-	  }
-	  $entities_permissions = $permissions;
-	  cache_set('entities_permissions', $entities_permissions);
-	}
-  }
-
-  if (isset($entity_type)) {
-	return $entities_permissions[$entity_type];
-  }
-  else {
-	return $entities_permissions;
-  }
-
-}
-
-/**
- * Returns an entity_type properties that might depend on a parent entity matching property.
- * Unlike entity_toolbox_get_inherited_properties(), the array returned does not specify on which parent the property depends.
- *
- * @param null $entity_type
- *
- * @return array
- */
-function entity_toolbox_get_inheritable_properties($entity_type = NULL) {
-  /**
-   * We cache entities_permissions since its used very often.
-   */
-  static $drupal_static_fast;
-  if (!isset($drupal_static_fast)) {
-	$drupal_static_fast['entities_inheritable_properties'] = &drupal_static(__FUNCTION__);
-  }
-  $entities_inheritable_properties = &$drupal_static_fast['entities_inheritable_properties'];
-  if (empty($entities_inheritable_properties)) {
-	if ($cache = cache_get('entities_inheritable_properties')) {
-	  $entities_inheritable_properties = $cache->data;
-	}
-	else {
-	  $toolbox_info = entity_toolbox_entity_get_info();
-	  $inherited    = array();
-	  foreach ($toolbox_info as $type => $type_info) {
-		foreach ($type_info['properties'] as $name => $property) {
-		  if ($property['type'] == 'parent') {
-			foreach ($property['inherit_from_parent'] as $n => $p) {
-			  if ((bool) !array_search($n, $inherited[$type])) {
-				$inherited[$type][] = $n;
-			  }
-			}
-		  }
-		}
-	  }
-	  $entities_inheritable_properties = $inherited;
-	  cache_set('entities_inheritable_properties', $entities_inheritable_properties);
-	}
-  }
-  return isset($entity_type) ? $entities_inheritable_properties[$entity_type] : $entities_inheritable_properties;
-}
-
-/**
- * Returns an entity_type inherited properties by parent_type.
- *
- * @param null $entity_type
- * @return array
- */
-function entity_toolbox_get_inherited_properties($entity_type = NULL) {
-  /**
-   * We cache entities_permissions since its used very often.
-   */
-  static $drupal_static_fast;
-  if (!isset($drupal_static_fast)) {
-	$drupal_static_fast['entities_inherited_properties'] = &drupal_static(__FUNCTION__);
-  }
-  $entities_inherited_properties = &$drupal_static_fast['entities_inherited_properties'];
-  if (empty($entities_inherited_properties)) {
-	if ($cache = cache_get('entities_inherited_properties')) {
-	  $entities_inherited_properties = $cache->data;
-	}
-	else {
-	  $toolbox_info = entity_toolbox_entity_get_info();
-	  $inherited    = array();
-	  foreach ($toolbox_info as $type => $type_info) {
-		foreach ($type_info['properties'] as $name => $property) {
-		  if ($property['type'] == 'parent') {
-			if (!empty($property['inherit_from_parent'])) {
-			  $inherited[$type][$property['reference']] = array();
-			}
-			foreach ($property['inherit_from_parent'] as $n => $p) {
-			  $inherited[$type][$property['reference']][$n] = array(
-				'parent_match' => $p['parent_match']
-			  );
-			}
-		  }
-		}
-	  }
-	  $entities_inherited_properties = $inherited;
-	  cache_set('entities_inherited_properties', $entities_inherited_properties);
-	}
-  }
-  return isset($entity_type) ? $entities_inherited_properties[$entity_type] : $entities_inherited_properties;
-
-}
-
-/**
- * Returns an entity_type properties that are parent references.
- *
- * @param null $entity_type
- *   The entity_type to get the parent properties of or NULL to return every entity_types parent properties.
- *
- * @return array
- */
-function entity_toolbox_get_parent_properties($entity_type = NULL) {
-  static $drupal_static_fast;
-  if (!isset($drupal_static_fast)) {
-	$drupal_static_fast['entities_parent_properties'] = &drupal_static(__FUNCTION__);
-  }
-  $entities_parent_properties = &$drupal_static_fast['entities_parent_properties'];
-  if (empty($entities_parent_properties)) {
-	if ($cache = cache_get('entities_parent_properties')) {
-	  $entities_parent_properties = $cache->data;
-	}
-	else {
-	  $toolbox_info      = entity_toolbox_entity_get_info();
-	  $parent_properties = array();
-	  foreach ($toolbox_info as $type => $type_info) {
-		foreach ($type_info['properties'] as $name => $property) {
-		  if ($property['type'] == 'parent') {
-			$parent_properties[$type][$property['reference']] = $name;
-		  }
-		}
-	  }
-	  $entities_parent_properties = $parent_properties;
-	  cache_set('entities_parent_properties', $entities_parent_properties);
-	}
-  }
-
-  return isset($entity_type) ? !empty($entities_parent_properties[$entity_type]) ? $entities_parent_properties[$entity_type] : array() : $entities_parent_properties;
-}
-
-/**
- * Returns an entity_type parent entity_types.
- *
- * @param null $entity_type
- *   The entity_type to get the parent for or NULL to get every entity_type.
- *
- * @return array
- */
-function entity_toolbox_get_parent_entities($entity_type = NULL) {
-  static $drupal_static_fast;
-  if (!isset($drupal_static_fast)) {
-	$drupal_static_fast['entities_parent_entities'] = &drupal_static(__FUNCTION__);
-  }
-  $entities_parent_entities = &$drupal_static_fast['entities_parent_entities'];
-  if (empty($entities_parent_entities)) {
-	if ($cache = cache_get('entities_parent_entities')) {
-	  $entities_parent_entities = $cache->data;
-	}
-	else {
-	  $toolbox_info    = entity_toolbox_entity_get_info();
-	  $parent_entities = array();
-	  foreach ($toolbox_info as $type => $type_info) {
-		foreach ($type_info['properties'] as $name => $property) {
-		  if ($property['type'] == 'parent') {
-			$parent_entities[$type][] = $property['reference'];
-		  }
-		}
-	  }
-	  $entities_parent_entities = $parent_entities;
-	  cache_set('entities_parent_entities', $entities_parent_entities);
-	}
-  }
-
-  return isset($entity_type) ? $entities_parent_entities[$entity_type] : $entities_parent_entities;
-}
-
-/**
- * @param $module
- */
-function entity_toolbox_uninstall_module_entities($module) {
-  $path = drupal_get_path('module', $module);
-  require_once $path . '/' . $module . '.uninstall';
-  $hook = $module . '_entities_uninstall';
-  $data = $hook();
-  foreach ($data as $entity_type => $info) {
-	$base_table = $info['base table'];
-	if (db_table_exists($base_table)) {
-	  db_drop_table($base_table);
-	}
-  }
-}
-
-/**
- * @param $data
- * @param $router_item
- * @param $root_path
- * @param $entity_type
- * @return mixed
- */
-function entity_toolbox_entity_action_link_add(&$data, $router_item, $root_path, $entity_type) {
-  $toolbox_info = entity_toolbox_entity_get_info($entity_type);
-  if ($toolbox_info['fieldable']) {
-	if ($root_path == entity_toolbox_entity_get_path($entity_type, 'admin')) {
-	  $item = menu_get_item(entity_toolbox_entity_get_path($entity_type, 'admin') . '/add');
-	  if ($item['access']) {
-		$data['actions']['output'][] = array(
-		  '#theme' => 'menu_local_action',
-		  '#link'  => $item,
-		);
-	  }
-	}
-  }
-  return $data;
-}
-
-/**
- * @param null $group
- * @return array
+ * @see hook_entity_toolbox_field_category_group_info().
  */
 function entity_toolbox_field_category_group_get_info($group = NULL) {
+  $HOOK     = 'field_category_group_info';
+  $CACHEKEY = ENTITY_TOOLBOX__FIELD_CATEGORY_GROUP_INFO;
+
   /**
-   * We cache entity_toolbox_entity_info since its used very often.
+   * Cached since used very often.
    */
   static $drupal_static_fast;
   if (!isset($drupal_static_fast)) {
-	$drupal_static_fast['field_category_group'] = &drupal_static(__FUNCTION__);
+    $drupal_static_fast['field_category_group_info'] = &drupal_static(__FUNCTION__);
   }
 
-  $field_category_group = &$drupal_static_fast['field_category_group'];
-  if (empty($field_category_group)) {
-	if ($cache = cache_get('field_category_group')) {
-	  $field_category_group = $cache->data;
-	}
-	else {
-	  $data = module_invoke_all('entity_toolbox_field_category_group_info');
-	  drupal_alter('entity_toolbox_field_category_group_info', $data);
-	  cache_set('entity_toolbox_field_category_group_info', $data);
-	  $field_category_group = $data;
-	}
+  $field_category_group_info = &$drupal_static_fast['field_category_group_info'];
+  if (empty($field_category_group_info)) {
+    if ($cache = entity_toolbox_cache_get($CACHEKEY)) {
+      $field_category_group_info = $cache->data;
+    }
+    else {
+      $groups = array();
+      $data   = module_invoke_all($HOOK);
+      drupal_alter($HOOK, $data);
+      foreach ($data as $name => $info) {
+        $groups[$name] = $info;
+        foreach (entity_toolbox_field_category_get_info() as $field_category => $field_category_info) {
+          if ($field_category_info['group'] == $name) {
+            $groups[$name]['field_categories'][] = $field_category;
+          }
+        }
+      }
+      $field_category_group_info = $groups;
+      entity_toolbox_cache_set($CACHEKEY, $field_category_group_info);
+    }
   }
 
-  return isset($group) ? $field_category_group[$group] : $field_category_group;
+  return isset($group) ? $field_category_group_info[$group] : $field_category_group_info;
 }
 
 /**
- * @param null $group
- * @return array|null
+ * Returns info on a field category.
+ *
+ * @param null|string $category
+ *   The field category name.
+ *
+ * @return array
+ *
+ * @see hook_entity_toolbox_field_category_info().
  */
-function entity_toolbox_field_category_group_get_by_entity_group($group = NULL) {
+function entity_toolbox_field_category_get_info($category = NULL) {
+  $HOOK     = 'field_category_info';
+  $CACHEKEY = ENTITY_TOOLBOX__FIELD_CATEGORY_INFO;
+
   /**
-   * We cache entity_toolbox_entity_info since its used very often.
+   * Cached since used very often.
    */
   static $drupal_static_fast;
   if (!isset($drupal_static_fast)) {
-	$drupal_static_fast['field_category_group_by_entity_group'] = &drupal_static(__FUNCTION__);
+    $drupal_static_fast['field_category_info'] = &drupal_static(__FUNCTION__);
   }
 
-  $field_category_group_by_entity_group = &$drupal_static_fast['field_category_group_by_entity_group'];
-  if (empty($field_category_group_by_entity_group)) {
-	if ($cache = cache_get('field_category_group_by_entity_group')) {
-	  $field_category_group_by_entity_group = $cache->data;
-	}
-	else {
-	  $groups        = array();
-	  $entity_groups = entity_toolbox_entity_group_info();
-	  foreach ($entity_groups as $entity_group => $entity_group_info) {
-		$groups[$entity_group] = array();
-	  }
-	  $category_groups = entity_toolbox_field_category_group_get_info();
-	  foreach ($category_groups as $category_group => $category_group_info) {
-		$groups[$category_group_info['group']][] = $category_group;
-	  }
-	  $field_category_group_by_entity_group = $groups;
-	  cache_set('field_category_group_by_entity_group', $field_category_group_by_entity_group);
-	}
+  $field_category_info = &$drupal_static_fast['field_category_info'];
+  if (empty($field_category_info)) {
+    if ($cache = entity_toolbox_cache_get($CACHEKEY)) {
+      $field_category_info = $cache->data;
+    }
+    else {
+      $groups = array();
+      $data   = module_invoke_all($HOOK);
+      drupal_alter($HOOK, $data);
+      foreach ($data as $name => $info) {
+        $groups[$name] = $info;
+      }
+      $field_category_info = $groups;
+      entity_toolbox_cache_set($CACHEKEY, $field_category_info);
+    }
   }
 
-  return isset($group) ? !empty($field_category_group_by_entity_group[$group]) ? $field_category_group_by_entity_group[$group] : NULL : $field_category_group_by_entity_group;
+  return isset($category) ? $field_category_info[$category] : $field_category_info;
 }
 
 /**
- * @param null $category
+ * Returns an entity type parent properties.
+ *
+ * @param null $entity_type
+ *   The entity type, or NULL to return parent properties for all entity types.
+ *
  * @return array
  */
-function entity_toolbox_field_categories_get_info($category = NULL) {
+function entity_toolbox_entity_parent_properties_get_info($entity_type = NULL) {
+
+  $CACHEKEY = ENTITY_TOOLBOX__PARENT_PROPERTY_INFO;
+
   /**
-   * We cache entity_toolbox_entity_info since its used very often.
+   * Cached since used very often.
    */
   static $drupal_static_fast;
   if (!isset($drupal_static_fast)) {
-	$drupal_static_fast['field_categories'] = &drupal_static(__FUNCTION__);
+    $drupal_static_fast['parent_property_info'] = &drupal_static(__FUNCTION__);
   }
 
-  $field_categories = &$drupal_static_fast['field_categories'];
-  if (empty($field_categories)) {
-	if ($cache = cache_get('field_categories')) {
-	  $field_categories = $cache->data;
-	}
-	else {
-	  $data = module_invoke_all('entity_toolbox_field_category_info');
-	  drupal_alter('entity_toolbox_field_category_info', $data);
-	  cache_set('entity_toolbox_field_category_info', $data);
-	  $field_categories = $data;
-	}
+  $parent_property_info = &$drupal_static_fast['parent_property_info'];
+  if (empty($parent_property_info)) {
+    if ($cache = entity_toolbox_cache_get($CACHEKEY)) {
+      $parent_property_info = $cache->data;
+    }
+    else {
+      $parents = array();
+      foreach (entity_toolbox_get_info() as $type => $info) {
+        foreach ($info['properties'] as $prop_name => $property) {
+          if (($property['type'] == 'parent') || ($property['type'] == 'self_parent')) {
+            //The key is the property name and the value is the parent entity_type.
+            $parents[$type][$prop_name] = $property['reference'];
+          }
+        }
+      }
+      $parent_property_info = $parents;
+      entity_toolbox_cache_set($CACHEKEY, $parent_property_info);
+    }
   }
 
-  return isset($category) ? $field_categories[$category] : $field_categories;
+  return isset($entity_type) ? $parent_property_info[$entity_type] : $parent_property_info;
 }
 
 /**
- * @param null $group
+ * Returns the inheritable property of an entity type.
+ *
+ * @param null|string $entity_type
+ *   The entity type, or NULL to return info on all entity types.
+ *
  * @return array
  */
-function entity_toolbox_field_categories_get_by_category_group($group = NULL) {
+function entity_toolbox_inheritable_property_get_info($entity_type = NULL) {
+  $CACHEKEY = ENTITY_TOOLBOX__INHERITABLE_PROPERTY_INFO;
+
   /**
-   * We cache entity_toolbox_entity_info since its used very often.
+   * Cached since used very often.
    */
   static $drupal_static_fast;
   if (!isset($drupal_static_fast)) {
-	$drupal_static_fast['field_categories_by_category_group'] = &drupal_static(__FUNCTION__);
+    $drupal_static_fast['inheritable_property_info'] = &drupal_static(__FUNCTION__);
   }
 
-  $field_categories_by_category_group = &$drupal_static_fast['field_categories_by_category_group'];
-  if (empty($field_categories_by_category_group)) {
-	if ($cache = cache_get('field_categories_by_category_group')) {
-	  $field_categories_by_category_group = $cache->data;
-	}
-	else {
-	  $field_categories_info              = entity_toolbox_field_categories_get_info();
-	  $field_categories_by_category_group = array();
-	  foreach ($field_categories_info as $category => $info) {
-		$field_categories_by_category_group[$info['group']][$category] = $info;
-	  }
-
-	  cache_set('field_categories_by_category_group', $field_categories_by_category_group);
-	}
+  $inheritable_property_info = &$drupal_static_fast['inheritable_property_info'];
+  if (empty($inheritable_property_info)) {
+    if ($cache = entity_toolbox_cache_get($CACHEKEY)) {
+      $inheritable_property_info = $cache->data;
+    }
+    else {
+      $inheritable = array();
+      foreach (entity_toolbox_get_info() as $type => $info) {
+        foreach ($info['children_inherit'] as $inherit) {
+          $inheritable[$type][] = $inherit;
+        }
+      }
+      $inheritable_property_info = $inheritable;
+      entity_toolbox_cache_set($CACHEKEY, $inheritable_property_info);
+    }
   }
 
-  return isset($group) ? $field_categories_by_category_group[$group] : $field_categories_by_category_group;
+  return isset($entity_type) ? $inheritable_property_info[$entity_type] : $inheritable_property_info;
 }
 
 /**
- * @param null $group
+ * Returns the inherited properties of an entity type.
+ *
+ * @param null $entity_type
+ *   The entity type, or NULL to return properties for every entity type.
+ *
+ * @return array
  */
-function entity_toolbox_field_category_get_by_entity_group($group = NULL) {
+function entity_toolbox_inherited_property_get_info($entity_type = NULL) {
+  $CACHEKEY = ENTITY_TOOLBOX__INHERITED_PROPERTY_INFO;
+
+  /**
+   * Cached since used very often.
+   */
   static $drupal_static_fast;
   if (!isset($drupal_static_fast)) {
-	$drupal_static_fast['field_category_by_entity_group'] = &drupal_static(__FUNCTION__);
+    $drupal_static_fast['inherited_property_info'] = &drupal_static(__FUNCTION__);
   }
 
-  $field_category_by_entity_group = &$drupal_static_fast['field_category_by_entity_group'];
-  if (empty($field_category_by_entity_group)) {
-	if ($cache = cache_get('field_category_by_entity_group')) {
-	  $field_category_by_entity_group = $cache->data;
-	}
-	else {
-	  $groups        = array();
-	  $entity_groups = entity_toolbox_entity_group_info();
-	  foreach ($entity_groups as $entity_group => $entity_group_info) {
-		$groups[$entity_group] = array();
-	  }
-
-	}
+  $inherited_property_info = &$drupal_static_fast['inherited_property_info'];
+  if (empty($inherited_property_info)) {
+    if ($cache = entity_toolbox_cache_get($CACHEKEY)) {
+      $inherited_property_info = $cache->data;
+    }
+    else {
+      $inherited = array();
+      foreach (entity_toolbox_get_info() as $type => $info) {
+        $buffer = array();
+        /**
+         * @var string $prop_name
+         *   The property name.
+         * @var string $parent_type
+         *   The parent entity type.
+         */
+        foreach (entity_toolbox_entity_parent_properties_get_info($type) as $prop_name => $parent_type) {
+          //@todo mind parent type hierarchy position in the entity group.
+          //The inheritable properties for the current parent type.
+          foreach (entity_toolbox_inheritable_property_get_info($parent_type) as $inheritable) {
+            $buffer[$parent_type][] = $inheritable;
+          }
+        }
+        $inherited[$type] = $buffer;
+      }
+      $inherited_property_info = $inherited;
+      entity_toolbox_cache_set($CACHEKEY, $inherited_property_info);
+    }
   }
+
+  return isset($entity_type) ? $inherited_property_info[$entity_type] : $inherited_property_info;
 }
 
 /**
- * @param $entity_type
- * @return null
+ * Returns fields to be inherited by children entities.
+ *
+ * @param null|string $entity_type
+ *   The entity type.
+ * @param null|string $bundle
+ *   The bundle name.
+ * @param null|string $field
+ *   The field name.
+ *
+ * @return array
+ *   An associative array where the keys are the entity types and the values are :
+ *     - The entity type bundles : An array containing the name of inheritable fields.
  */
-function entity_toolbox_entity_self_parent_property($entity_type) {
-  $parent_properties = entity_toolbox_get_parent_properties($entity_type);
-  $keys              = array_keys($parent_properties);
-  $self              = array_search($entity_type, $keys);
-  if ($self !== FALSE) {
-	return $parent_properties[$keys[$self]];
+function entity_toolbox_inheritable_field_get_info($entity_type = NULL, $bundle = NULL, $field = NULL) {
+  $CACHEKEY = ENTITY_TOOLBOX__INHERITABLE_FIELD_INFO;
+
+  /**
+   * Cached since used very often.
+   */
+  static $drupal_static_fast;
+  if (!isset($drupal_static_fast)) {
+    $drupal_static_fast['inheritable_field_info'] = &drupal_static(__FUNCTION__);
+  }
+
+  $inheritable_field_info = &$drupal_static_fast['inheritable_field_info'];
+  if (empty($inheritable_field_info)) {
+    if ($cache = entity_toolbox_cache_get(ENTITY_TOOLBOX__INHERITABLE_FIELD_INFO)) {
+      $inheritable_field_info = $cache->data;
+    }
+    else {
+      $inheritable = array();
+      foreach (entity_toolbox_get_info() as $type => $info) {
+        foreach (entity_get_types($type) as $bnd) {
+          foreach (field_info_instances($type, $bnd) as $field_info_instance) {
+            if (isset($field_info_instance['settings']['toolbox']['inherit'])) {
+              $inheritable[$type][$bnd][] = $field_info_instance['name'];
+            }
+          }
+        }
+      }
+      $inheritable_field_info = $inheritable;
+      entity_toolbox_cache_set($CACHEKEY, $inheritable_field_info);
+    }
+  }
+
+  if (isset($entity_type)) {
+    if (isset($bundle)) {
+      return isset($field) ? $inheritable_field_info[$entity_type][$bundle][$field] : $inheritable_field_info[$entity_type][$bundle];
+    }
+    else {
+      return $inheritable_field_info[$entity_type];
+    }
   }
   else {
-	return NULL;
+    return $inheritable_field_info;
   }
 }
 
 /**
- * @param $entity_type
- * @return null
+ * Returns fields that should inherit parent values.
+ *
+ * @param null|string $entity_type
+ *   The entity type.
+ * @param null|string $bundle
+ *   The entity bundle.
+ * @param null|string $field
+ *   The field name.
+ *
+ * @return array
  */
-function entity_toolbox_entity_self_parent_property_key($entity_type) {
-  $toolbox           = entity_toolbox_entity_get_info($entity_type);
-  $parent_properties = entity_toolbox_get_parent_properties($entity_type);
-  $keys              = array_keys($parent_properties);
-  $self              = array_search($entity_type, $keys);
+function entity_toolbox_inherited_field_get_info($entity_type = NULL, $bundle = NULL, $field = NULL) {
+  $CACHEKEY = ENTITY_TOOLBOX__INHERITED_FIELD_INFO;
 
-  if ($self !== FALSE) {
-	return $toolbox['properties'][$parent_properties[$keys[$self]]]['schema field'];
+  /**
+   * Cached since used very often.
+   */
+  static $drupal_static_fast;
+  if (!isset($drupal_static_fast)) {
+    $drupal_static_fast['inherited_field_info'] = &drupal_static(__FUNCTION__);
+  }
+
+  $inherited_field_info = &$drupal_static_fast['inherited_field_info'];
+  if (empty($inherited_field_info)) {
+    if ($cache = entity_toolbox_cache_get(ENTITY_TOOLBOX__INHERITABLE_FIELD_INFO)) {
+      $inherited_field_info = $cache->data;
+    }
+    else {
+      $inherited   = array();
+      $inheritable = entity_toolbox_inheritable_field_get_info();
+      foreach (entity_toolbox_get_info() as $type => $info) {
+        /**
+         * @var string $b
+         *   A bundle of $type.
+         */
+        foreach (entity_get_bundles($type) as $b) {
+          $fields = field_info_instances($entity_type, $b);
+          /**
+           * @var string $f
+           * @var array  $i
+           */
+          foreach ($fields as $f => $i) {
+
+          }
+        }
+      }
+      $inherited_field_info = $inherited;
+      entity_toolbox_cache_set($CACHEKEY, $inherited_field_info);
+    }
+  }
+
+  if (isset($entity_type)) {
+    if (isset($bundle)) {
+      return isset($field) ? $inherited_field_info[$entity_type][$bundle][$field] : $inherited_field_info[$entity_type][$bundle];
+    }
+    else {
+      return $inherited_field_info[$entity_type];
+    }
   }
   else {
-	return NULL;
+    return $inherited_field_info;
   }
+
 }
 
 /**
- * @param $entity_type
- * @return mixed
+ * Returns the entities edit form alters.
+ *
+ * @return array
  */
-function entity_toolbox_entity_get_status($entity_type) {
-  $query   = db_select('installed_entities', 'i')
-	->fields('i', array())
-	->condition('i.entity_type', $entity_type);
-  $result  = $query->execute();
-  $results = array();
-  while ($record = $result->fetchAssoc()) {
-	$results[] = $record;
+function entity_toolbox_edit_form_alter_get_info() {
+  $calls = &drupal_static(__FUNCTION__, NULL);
+  if (empty($calls)) {
+    $regexp    = '/^(?P<module>.+)_type_(?P<entity_type>.+)_edit_form__alter$/';
+    $functions = get_defined_functions();
+    $calls     = array();
+    foreach (preg_grep('/__alter$/', $functions['user']) as $function) {
+      if (preg_match($regexp, $function, $matches)) {
+        $calls[$matches['module']][] = $matches['entity_type'];
+      }
+    }
   }
 
-  return reset($results);
+  return $calls;
 }
 
 /**
- * @param $entity_type
+ * Returns the entities delete form alters.
+ *
+ * @return array
+ */
+function entity_toolbox_delete_form_alter_get_info() {
+  $calls = &drupal_static(__FUNCTION__, NULL);
+  if (empty($calls)) {
+    $regexp    = '/^(?P<module>.+)_type_(?P<entity_type>.+)_delete_form__alter$/';
+    $functions = get_defined_functions();
+    $calls     = array();
+    foreach (preg_grep('/__alter$/', $functions['user']) as $function) {
+      if (preg_match($regexp, $function, $matches)) {
+        $calls[$matches['module']][] = $matches['entity_type'];
+      }
+    }
+  }
+
+  return $calls;
+}
+
+/**
+ * Returns the entities inline entity form alters.
+ *
+ * @return array
+ */
+function entity_toolbox_inline_form_alter_get_info() {
+  $calls = &drupal_static(__FUNCTION__, NULL);
+  if (empty($calls)) {
+    $regexp    = '/^(?P<module>.+)_type_(?P<entity_type>.+)_inline_entity_form__alter/';
+    $functions = get_defined_functions();
+    $calls     = array();
+    foreach (preg_grep('/__alter$/', $functions['user']) as $function) {
+      if (preg_match($regexp, $function, $matches)) {
+        $calls[$matches['module']][] = $matches['entity_type'];
+      }
+    }
+  }
+
+  return $calls;
+}
+
+/**
+ * Returns the module implementing hook_entity_skip_load().
+ * Used in entity_skip_load().
+ *
+ * @return array
+ *
+ * @see hook_entity_skip_load().
+ * @see _entity_skip_load().
+ */
+function entity_toolbox_entity_skip_load_get_info() {
+  $calls = &drupal_static(__FUNCTION__, NULL);
+  if (empty($calls)) {
+    $regexp    = '/^(?P<module>.+)_entity_skip_load$/';
+    $functions = get_defined_functions();
+    $calls     = array();
+    foreach ($functions['user'] as $function) {
+      if (preg_match($regexp, $function, $matches)) {
+        $calls[] = $matches['module'];
+      }
+    }
+  }
+
+  return $calls;
+}
+
+/**
+ * Indicates if an entity is installed.
+ *
+ * @param string $entity_type
+ *   The entity type.
+ *
  * @return bool
  */
-function is_entity_installed($entity_type) {
-  $status = entity_toolbox_entity_get_status($entity_type);
-  return (bool) $status['installed'];
-}
-
-/**
- * @param $entity_type
- */
-function entity_toolbox_entity_uninstall($entity_type) {
-  $status            = entity_toolbox_entity_get_status($entity_type);
-  $is_module_enabled = system_get_info($status['module']);
-  if ($status['installed'] && !$is_module_enabled) {
-	if (db_table_exists($status['table'])) {
-	  db_drop_table($status['table']);
-	}
+function entity_install_get_info($entity_type) {
+  $installed = &drupal_static(__FUNCTION__, array());
+  if (!in_array($entity_type, $installed)) {
+    $info = entity_get_info();
+    if (in_array($entity_type, array_keys($info))) {
+      if (db_table_exists($info[$entity_type]['base table'])) {
+        $installed[] = $entity_type;
+      }
+    }
   }
-}
 
-/**
- * @param $entity_type
- * @param $update_N
- */
-function entity_toolbox_up($entity_type, $update_N) {
-
+  return in_array($entity_type, $installed);
 }
