@@ -1,67 +1,23 @@
 <?php
 
+require_once ENTITY_TOOLBOX_PATH . '/src/classes/helpers/entity_toolbox/EntityToolboxHelper.inc';
+require_once ENTITY_TOOLBOX_PATH . '/src/classes/helpers/entity_toolbox/ToolboxPropertiesHelper.inc';
+require_once ENTITY_TOOLBOX_PATH . '/src/traits/EntityParametersDependentTraits.inc';
+
 /**
  * The Controller for entities managed by entity toolbox
  *
  * Class EntityToolboxEntityController
  */
 class EntityToolboxController extends EntityAPIController {
-  use EntityToolboxCommonTraits;
 
-  /**
-   * Toolbox info retrieved and processed by entity toolbox.
-   *
-   * @see hook_entity_toolbox_entity_info().
-   * @see entity_toolbox_get_info().
-   */
-  protected $toolboxInfo = array();
-  /**
-   * @var boolean $fieldable
-   */
-  protected $fieldable;
-  /**
-   * @var boolean $hasRevisions
-   */
-  protected $hasRevisions;
-  /**
-   * @var boolean $hasTranslations
-   */
-  protected $hasTranslations;
-  /**
-   * @var array $cacheInfo
-   *   Entity cache info retrieved by entity toolbox.
-   */
-  protected $cacheInfo = array();
-  /**
-   * @var string $entityGroup
-   *   The entity group name.
-   */
-  protected $entityGroup;
-  /**
-   * @var array $propertiesInfo
-   *   The toolbox info properties.
-   */
-  protected $propertiesInfo = array();
-  /**
-   * @var string[] $referenceProperties
-   */
-  protected $referenceProperties = array();
-  /**
-   * @var string[] $inheritableProperties
-   *   An array of properties to be inherited by children entities.
-   */
-  protected $inheritableProperties = array();
-  /**
-   * @var array $inheritedProperties
-   *   An associative array whose keys are the properties to inherit from parent
-   *   entities, and the values the parent(s) from which to inherit the property.
-   */
-  protected $inheritedProperties = array();
-  /**
-   * @var string[] $bundles
-   *   The entity type bundles.
-   */
-  protected $bundles = array();
+  use
+    EntityToolboxCommonTraits,
+    ModuleDependentTraits,
+    EntityToolboxDependentTraits,
+    EntityParametersDependentTraits,
+    EntityGroupDependentTraits,
+    EntityToolboxPropertiesDependentTraits;
 
   /**
    * Constructor.
@@ -71,6 +27,7 @@ class EntityToolboxController extends EntityAPIController {
    */
   public function __construct($entity_type) {
     parent::__construct($entity_type);
+    $this->autoSetToolboxInfo();
     $this->setUp();
   }
 
@@ -81,294 +38,35 @@ class EntityToolboxController extends EntityAPIController {
    *   Arguments to set.
    */
   protected function setUp(array $args = array()) {
-    $toolboxInfo = entity_toolbox_get_info($this->entityType);
-    $args += array(
-      'toolbox_info'     => $toolboxInfo,
-      'fieldable'        => $toolboxInfo['fieldable'],
-      'has_revisions'    => $toolboxInfo['has_revisions'],
-      'has_translations' => $toolboxInfo['has_translations'],
-      'properties_info'  => $toolboxInfo['properties'],
-    );
-    foreach ($args as $key => $arg) {
-      $this->__set($key, $arg);
-    }
-    $this->setReferenceProperties(extract_reference_properties($this->entityType, $this->toolboxInfo));
-    $this->setInheritableProperties(entity_toolbox_inheritable_property_get_info($this->entityType));
-    $this->setInheritedProperties(entity_toolbox_inherited_property_get_info($this->entityType));
+    $this->autoSetHelpers();
+    $helper = $this->getToolboxHelper();
+    $helper->dataToArgs($args);
+    $this->constructSet($args);
+    $this->autoSet();
   }
 
   /**
-   * Return the entity toolbox info.
+   * Init phase where construct args are set.
    *
-   * @return array
+   * @param array $args
    */
-  public function toolboxInfo() {
-    return $this->toolboxInfo;
+  protected function constructSet($args) {
+    $this->setConstructArgs($args);
+    $this->bulkSet($args);
   }
 
   /**
-   * Returns the entity type revision key.
+   * Auto sets properties.
    */
-  public function revisionKey() {
-    return $this->entityInfo['keys']['revision'];
+  protected function autoSet() {
   }
 
   /**
-   * Returns the author key.
-   *
-   * @return string
+   * Auto sets required helpers.
    */
-  public function getAuthorKey() {
-    return $this->toolboxInfo['author_key'];
-  }
-
-  /**
-   * Returns the entity author.
-   *
-   * @param \EntityToolbox $entity
-   *   The entity.
-   *
-   * @return \Entity
-   */
-  public function getAuthor($entity) {
-    return user_load($entity->{$this->getAuthorKey()});
-  }
-
-  /**
-   * Returns the entity author uid.
-   *
-   * @param \EntityToolbox $entity
-   *   The entity.
-   *
-   * @return int
-   */
-  public function getAuthorUid($entity) {
-    return $entity->{$this->getAuthorKey()};
-  }
-
-  /**
-   * Retrieves the entity type existing bundles name.
-   */
-  protected function setBundles() {
-    foreach ($this->types() as $key => $value) {
-      $this->bundles[] = $key;
-    }
-  }
-
-  /**
-   * Returns the entity type bundle names.
-   *
-   * @return \string[]
-   */
-  public function getBundles() {
-    return $this->bundles;
-  }
-
-  /**
-   * Returns a bundle entity.
-   *
-   * @param null|string $type
-   *   The bundle name, or NULL to return every bundle.
-   *
-   * @return \EntityToolboxNotFieldable[]
-   */
-  public function types($type = NULL) {
-    return entity_load_multiple_by_name($this->toolboxInfo['bundle_entity'], isset($type) ? array($type) : FALSE);
-  }
-
-  /**
-   * Retrieves the inheritable properties.
-   *
-   * @param array $inheritableProperties
-   *   The inheritable properties.
-   */
-  protected function setInheritableProperties($inheritableProperties = array()) {
-    $this->inheritableProperties = $inheritableProperties;
-  }
-
-  /**
-   * Returns inheritable properties.
-   *
-   * @return string[]
-   */
-  public function inheritableProperties() {
-    return $this->inheritableProperties;
-  }
-
-  /**
-   * Retrieves the entity type inherited properties.
-   *
-   * @param array $inheritedProperties
-   *   The inherited properties.
-   */
-  protected function setInheritedProperties($inheritedProperties = array()) {
-    $this->inheritedProperties = $inheritedProperties;
-  }
-
-  /**
-   * Returns the inherited properties.
-   *
-   * @return array
-   */
-  public function inheritedProperties() {
-    return $this->inheritedProperties;
-  }
-
-  /**
-   * @return string
-   */
-  public function getEntityGroup() {
-    return $this->entityGroup;
-  }
-
-  /**
-   * @param string $entityGroup
-   */
-  public function setEntityGroup($entityGroup) {
-    $this->entityGroup = $entityGroup;
-  }
-
-  /**
-   * @return mixed
-   */
-  public function getToolboxInfo() {
-    return $this->toolboxInfo;
-  }
-
-  /**
-   * @param mixed $toolboxInfo
-   */
-  public function setToolboxInfo($toolboxInfo) {
-    $this->toolboxInfo = $toolboxInfo;
-  }
-
-  /**
-   * @return boolean
-   */
-  public function isFieldable() {
-    return $this->fieldable;
-  }
-
-  /**
-   * @param boolean $fieldable
-   */
-  public function setFieldable($fieldable) {
-    $this->fieldable = $fieldable;
-  }
-
-  /**
-   * @return boolean
-   */
-  public function getHasRevisions() {
-    return $this->hasRevisions;
-  }
-
-  /**
-   * @param boolean $hasRevisions
-   */
-  public function setHasRevisions($hasRevisions) {
-    $this->hasRevisions = $hasRevisions;
-  }
-
-  /**
-   * @return boolean
-   */
-  public function getHasTranslations() {
-    return $this->hasTranslations;
-  }
-
-  /**
-   * @param boolean $hasTranslations
-   */
-  public function setHasTranslations($hasTranslations) {
-    $this->hasTranslations = $hasTranslations;
-  }
-
-  /**
-   * @return array
-   */
-  public function getCacheInfo() {
-    return $this->cacheInfo;
-  }
-
-  /**
-   * @param array $cacheInfo
-   */
-  public function setCacheInfo($cacheInfo) {
-    $this->cacheInfo = $cacheInfo;
-  }
-
-  /**
-   * @return string[]
-   */
-  public function getReferenceProperties() {
-    return $this->referenceProperties;
-  }
-
-  /**
-   * @param string[] $referenceProperties
-   */
-  public function setReferenceProperties($referenceProperties) {
-    $this->referenceProperties = $referenceProperties;
-  }
-
-  /**
-   * Indicates if a property is of type reference.
-   *
-   * @param string $name
-   *   The property name.
-   *
-   * @return bool
-   */
-  public function isReferenceProperty($name) {
-    return in_array($name, $this->referenceProperties);
-  }
-
-  /**
-   * Returns a property relation table.
-   *
-   * @param string $name
-   *   The property name.
-   *
-   * @return string
-   */
-  public function propertyRelationTable($name) {
-    $property = $this->toolboxInfo['properties'][$name];
-
-    return key($property['schemas']['relation']['name']);
-  }
-
-  /**
-   * Returns a property relation table.
-   *
-   * @param string $name
-   *   The property name.
-   *
-   * @return string
-   */
-  public function propertyRelationTableField($name) {
-    $property = $this->toolboxInfo['properties'][$name];
-
-    return $property['schemas_fields']['relation'];
-  }
-
-  /**
-   * Returns the parameters of a relation table between two entity types.
-   *
-   * @param \EntityToolbox $entity
-   *   The entity.
-   * @param string         $name
-   *   The property name.
-   *
-   * @return array
-   */
-  public function relationExtractInfo($entity, $name) {
-    return array(
-      'self_id_key' => $this->idKey,
-      'self_id'     => $entity->{$this->idKey},
-      'rel_table'   => $this->propertyRelationTable($name),
-      'ref_rel_key' => $this->propertyRelationTableField($name),
-    );
+  protected function autoSetHelpers() {
+    $this->setToolboxHelper($this->toolboxHelperGetInstance());
+    $this->setPropsHelper($this->propsHelperGetInstance());
   }
 
   /**
@@ -388,6 +86,96 @@ class EntityToolboxController extends EntityAPIController {
   }
 
   /**
+   * @return string[]
+   */
+  public function getReferenceProperties() {
+    return $this->referenceProperties;
+  }
+
+  /**
+   * @param string[] $referenceProperties
+   */
+  public function setReferenceProperties($referenceProperties) {
+    $this->referenceProperties = $referenceProperties;
+  }
+
+  /**
+   * Returns the parameters of a relation table between two entity types.
+   *
+   * @param \EntityToolbox $entity
+   *   The entity.
+   * @param string         $name
+   *   The property name.
+   *
+   * @return array
+   */
+  public function relationExtractInfo($entity, $name) {
+    $helper = $this->getPropsHelper();
+
+    return array(
+      'self_id_key' => $this->idKey,
+      'self_id'     => $entity->{$this->idKey},
+      'rel_table'   => $helper->propGetRelationTable($name),
+      'ref_rel_key' => $helper->propGetSchemaField($name, 'relation'),
+    );
+  }
+
+  /**
+   * Extracts the parameters for a relation table query.
+   *
+   * @param EntityToolbox $entity
+   *   The entity.
+   * @param string        $name
+   *   The reference property.
+   *
+   * @return array
+   */
+  public function relationQueryExtractFields($entity, $name) {
+    $helper   = $this->getPropsHelper();
+    $fields   = array();
+    $required = array(
+      $helper->propsGetIdProperty(),
+      $name
+    );
+    foreach ($required as $prop) {
+      $fieldName = $helper->propGetSchemaFieldName($prop, 'relation');
+      $fields[]  = array($fieldName => '');
+    }
+
+    return $fields;
+  }
+
+  /**
+   * Returns an instance of a helper.
+   *
+   * @param string $helperClass
+   * @param array  $args
+   *
+   * @return HelperBase
+   */
+  protected function helperGetInstance($helperClass, array $args = array()) {
+    $args = $this->mergeConstructArgs(array(
+      'data_holder' => $this,
+    ), $args);
+
+    return new $helperClass($args);
+  }
+
+  /**
+   * @return \ToolboxPropertiesHelper
+   */
+  protected function propsHelperGetInstance() {
+    return $this->helperGetInstance('ToolboxPropertiesHelper');
+  }
+
+  /**
+   * @return \EntityToolboxHelper
+   */
+  protected function toolboxHelperGetInstance() {
+    return $this->helperGetInstance('EntityToolboxHelper');
+  }
+
+  /**
    * Inserts values for a multi value reference property.
    *
    * @param \EntityToolbox $entity
@@ -401,14 +189,18 @@ class EntityToolboxController extends EntityAPIController {
    * @throws \Exception
    */
   public function insertMultiReferenceValues($entity, $name, $add_ids = array()) {
-    list($self_id_key, $self_id, $rel_table, $ref_rel_key) = $this->relationExtractInfo($entity, $name);
-    $inserted = array();
+    $helper        = $this->getPropsHelper();
+    $table         = $helper->propGetRelationTable($name);
+    $entityIdField = $this->idKey;
+    $entityId      = $entity->{$this->idKey};
+    $refField      = $helper->propGetSchemaField($name, 'relation');
+    $inserted      = array();
     foreach ($add_ids as $add_id) {
-      $inserted[] = db_insert($rel_table)
+      $inserted[] = db_insert($table)
         ->fields(
           array(
-            $self_id_key => $self_id,
-            $ref_rel_key => $add_id
+            $entityIdField => $entityId,
+            $refField      => $add_id
           )
         )
         ->execute();
@@ -436,38 +228,31 @@ class EntityToolboxController extends EntityAPIController {
   }
 
   /**
-   * Determines if the load has to be skipped.
-   *
-   * @param array $calls
-   *   The called hook response.
-   *
-   * @return bool
-   */
-  public function requiresSkipLoad($calls) {
-
-  }
-
-  /**
    * Returns a property default value.
    *
    * @param string $name
-   *   The property type.
+   *   The property name.
    *
    * @return mixed
    */
   public function propertyDefaultValue($name) {
-    $property = $this->toolboxInfo['properties'][$name];
-    if (!empty($property['default'])) {
-      return $property['default'];
-    }
-    else {
-      if (!empty($property['callbacks']['default'])) {
-        $callback = $property['callbacks']['default'];
-        $call     = $callback();
+    $helper = $this->getPropsHelper();
 
-        return $call;
-      }
-    }
+    return $helper->propGetDefaultValue($name);
+  }
+
+  /**
+   * Returns a property value of an existing entity.
+   *
+   * @param EntityToolbox $entity
+   *   The entity.
+   * @param string        $name
+   *   The property name.
+   *
+   * @return mixed
+   */
+  public function propertyValue($entity, $name) {
+
   }
 
   /**
@@ -477,11 +262,28 @@ class EntityToolboxController extends EntityAPIController {
    */
   public function propertiesDefaultValues() {
     $values = array();
-    foreach ($this->toolboxInfo['properties'] as $name => $property) {
-      $values[$property['key']] = $this->propertyDefaultValue($name);
+    $helper = $this->getPropsHelper();
+    foreach ($this->properties as $name => $info) {
+      $key = $helper->propHasKey($name);
+      if ($key && $helper->propHasDefaultValue($name)) {
+        $key          = $this->keyGet($name);
+        $values[$key] = $this->propertyDefaultValue($name);
+      }
     }
 
     return $values;
+  }
+
+  /**
+   * @param $property
+   * @return mixed
+   */
+  public function keyGet($property) {
+    $helper     = $this->getPropsHelper();
+    $entityKeys = $this->entityInfo['entity keys'];
+    $key        = $helper->propGetKey($property);
+
+    return $entityKeys[$key];
   }
 
   /**
@@ -493,9 +295,9 @@ class EntityToolboxController extends EntityAPIController {
    * @return bool
    */
   public function isPropertyMultiValue($name) {
-    $property = $this->toolboxInfo['properties'][$name];
+    $helper = $this->getPropsHelper();
 
-    return $property['multiple'];
+    return $helper->propIsMulti($name);
   }
 
   /**
@@ -542,7 +344,8 @@ class EntityToolboxController extends EntityAPIController {
    * @return integer[]
    */
   public function propertyReferences2ReferenceIds($name, array $references = array()) {
-    $referenceType = $this->propertiesInfo[$name]['type'];
+    $helper        = $this->getPropsHelper();
+    $referenceType = $helper->propGetReference($name);
 
     return references2references_ids($references, $referenceType);
   }
@@ -566,7 +369,8 @@ class EntityToolboxController extends EntityAPIController {
     //@todo handle non referential multi value.
     //@todo add hook_property_pre_set
     //@todo add hook_property_post_set
-    if ($this->isReferenceProperty($name)) {
+    $helper = $this->getPropsHelper();
+    if ($helper->propIsReference($name)) {
       $this->setMultiValueReferenceProperty($entity, $name, $values, $langcode = NULL, $options = array());
     }
     else {

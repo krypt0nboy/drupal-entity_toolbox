@@ -10,13 +10,12 @@
  * Class EntityToolbox
  */
 class EntityToolbox extends Entity {
-  /**
-   * Toolbox info retrieved and processed by entity toolbox.
-   *
-   * @see hook_entity_toolbox_entity_info().
-   * @see entity_toolbox_get_info().
-   */
-  protected $toolboxInfo;
+  use
+    EntityToolboxCommonTraits,
+    EntityToolboxDependentTraits,
+    EntityParametersDependentTraits,
+    EntityToolboxPropertiesDependentTraits;
+
   /**
    * @var string $entityGroup
    *   The entity group.
@@ -37,6 +36,7 @@ class EntityToolbox extends Entity {
    */
   public function __construct($values = array(), $entity_type = NULL) {
     parent::__construct($values, $entity_type);
+    $this->autoSetToolboxInfo();
   }
 
   /**
@@ -44,36 +44,33 @@ class EntityToolbox extends Entity {
    */
   public function setUp() {
     parent::setUp();
-    $this->toolboxInfo = entity_toolbox_get_info($this->entityType);
-    $this->entityGroup = $this->toolboxInfo['group'];
+    $helper = $this->getToolboxHelper();
+    $helper->dataToArgs($args = array());
+    $this->constructSet($args);
   }
 
   /**
-   * Returns the entity toolbox info.
+   * Init phase where construct args are set.
    *
-   * @return array
+   * @param array $args
    */
-  public function toolboxInfo() {
-    return $this->toolboxInfo;
+  protected function constructSet($args) {
+    $this->setConstructArgs($args);
+    $this->bulkSet($args);
   }
 
   /**
-   * Returns the entity group.
-   *
    * @return string
    */
-  public function entityGroup() {
+  public function getEntityGroup() {
     return $this->entityGroup;
   }
 
   /**
-   * Return the entity label.
-   *
-   * @return string
-   *   Label.
+   * @param string $entityGroup
    */
-  protected function defaultLabel() {
-    return parent::defaultLabel();
+  public function setEntityGroup($entityGroup) {
+    $this->entityGroup = $entityGroup;
   }
 
   /**
@@ -83,7 +80,6 @@ class EntityToolbox extends Entity {
    *   Uri.
    */
   protected function defaultUri() {
-    //TODO : add entity uri template
-    return array('path' => "$this->entityType/" . $this->idKey);
+    return array('path' => "$this->entityType/" . $this->{$this->idKey});
   }
 }

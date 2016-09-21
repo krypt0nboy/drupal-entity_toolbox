@@ -12,18 +12,27 @@
  * This class is based on \EntityDefaultUIController.
  * Either \EntityToolboxFieldableUIController or \EntityToolboxNotFieldableUIController should be implemented in code.
  */
-class EntityToolboxUIController extends EntityDefaultUIController {
+class EntityToolboxUIController extends EntityOperationsDefaultAdminUIController {
+  use
+    EntityToolboxCommonTraits,
+    ModuleDependentTraits,
+    EntityToolboxDependentTraits,
+    EntityParametersDependentTraits,
+    EntityGroupDependentTraits,
+    EntityToolboxPropertiesDependentTraits;
 
-  /** @var  array $toolboxInfo */
-  protected $toolboxInfo;
-  /** @var string $wildcard */
+  /**
+   * @var string $wildcard
+   */
   protected $wildcard;
-  /** @var  string[] $formSettings */
-  protected $formSettings;
-  /** @var  string[] $formsIds */
-  protected $formsIds;
-  /** @var  string $basePath */
-  protected $basePath;
+  /**
+   * @var array $formsIds
+   */
+  protected $formsIds = array();
+  /**
+   * @var array $formsSettings
+   */
+  protected $formsSettings = array();
 
   /**
    * EntityToolboxUIController constructor.
@@ -37,38 +46,12 @@ class EntityToolboxUIController extends EntityDefaultUIController {
    */
   public function __construct($entity_type, $entity_info) {
     parent::__construct($entity_type, $entity_info);
-    $this->path     = entity_get_path($this->entityType, 'admin');
-    $this->id_count = count(explode('/', $this->path));
-    $this->wildcard = isset($this->entityInfo['admin ui']['menu wildcard']) ? $this->entityInfo['admin ui']['menu wildcard'] : "%$this->entityInfo";
-    $this->setFormsIds();
+//    $this->path     = entity_get_path($this->entityType, 'admin');
+//    $this->id_count = count(explode('/', $this->path));
+//    $this->wildcard = isset($this->entityInfo['admin ui']['menu wildcard']) ? $this->entityInfo['admin ui']['menu wildcard'] : "%$this->entityInfo";
   }
 
-  /**
-   * Returns the entity type single label.
-   *
-   * @return string
-   */
-  public function labelSingle() {
-    return $this->toolboxInfo['labels']['single'];
-  }
 
-  /**
-   * Returns the entity type single label.
-   *
-   * @return string
-   */
-  public function labelPlural() {
-    return $this->toolboxInfo['labels']['plural'];
-  }
-
-  /**
-   * Returns the admin ui wildcard.
-   *
-   * @return string
-   */
-  public function wildcard() {
-    return $this->wildcard;
-  }
 
   /**
    * Returns the content for the entity add page.
@@ -87,35 +70,6 @@ class EntityToolboxUIController extends EntityDefaultUIController {
       'type'    => $this->entityType,
       'content' => $content,
     ));
-  }
-
-  /**
-   * Sets the entity forms IDs.
-   */
-  public function setFormsIds() {
-    //@todo replace with iteration over form types.
-    $this->formsIds = array(
-      'edit'   => $this->entityType . '_edit_form',
-      'delete' => $this->entityType . '_delete_form',
-    );
-  }
-
-  /**
-   * Returns the entity edit form ID.
-   *
-   * @return string
-   */
-  public function editFormId() {
-    return $this->formsIds['edit'];
-  }
-
-  /**
-   * Returns the entity delete form ID.
-   *
-   * @return string
-   */
-  public function deleteFormId() {
-    return $this->formsIds['delete'];
   }
 
   /**
@@ -139,7 +93,7 @@ class EntityToolboxUIController extends EntityDefaultUIController {
    *   The options passed to the form.
    */
   public function updateFormSettings($entity, $options = array()) {
-    $this->formSettings['ajax_enabled'] = !$entity->is_new;
+//    $this->formSettings['ajax_enabled'] = !$entity->is_new;
   }
 
   /**
@@ -148,7 +102,8 @@ class EntityToolboxUIController extends EntityDefaultUIController {
    * @return mixed
    */
   public function rootMenuItemBuild() {
-    $label_plural      = $this->labelPlural();
+    $helper            = $this->getToolboxHelper();
+    $label_plural      = $helper->labelPlural();
     $item[$this->path] = array(
       'title'            => $label_plural,
       'type'             => MENU_LOCAL_TASK,
@@ -161,20 +116,6 @@ class EntityToolboxUIController extends EntityDefaultUIController {
     );
 
     return $item;
-  }
-
-  /**
-   * Builds the a menu item for a given action type.
-   *
-   * @param string $action
-   *   The action type for which to build the menu item.
-   *
-   * @see hook_toolbox_action_type_info().
-   * @see entity_toolbox_entity_action_type_get_info().
-   *
-   */
-  public function actionTypeMenuItemBuild($action) {
-
   }
 
   /**
@@ -295,9 +236,7 @@ class EntityToolboxUIController extends EntityDefaultUIController {
    * @param array $form_state
    *   The form state, passed by reference.
    */
-  public function entityDeleteFormValidate($form, &$form_state) {
-
-  }
+  public function entityDeleteFormValidate($form, &$form_state) {}
 
   /**
    * Submits the entity delete_form.

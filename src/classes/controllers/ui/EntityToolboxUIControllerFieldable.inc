@@ -6,10 +6,7 @@
  * The default UI Controller for fieldable entities.
  */
 class EntityToolboxUIControllerFieldable extends EntityToolboxUIController {
-
-  /**
-   *{@inheritdoc}
-   */
+  /** {{@inheritdoc}} */
   public function entityEditForm($form, &$form_state, $entity, $options = array()) {
     $form += parent::entityEditForm($form, $form_state, $entity, $options);
     //Attach the entity properties to the form.
@@ -48,9 +45,7 @@ class EntityToolboxUIControllerFieldable extends EntityToolboxUIController {
     return $form;
   }
 
-  /**
-   * {@inheritdoc}
-   */
+  /** {{@inheritdoc}} */
   public function entityEditFormValidate($form, &$form_state) {
     parent::entityEditFormValidate($form, $form_state);
   }
@@ -124,8 +119,9 @@ class EntityToolboxUIControllerFieldable extends EntityToolboxUIController {
    */
   public function hook_menu() {
     $items           = array();
+    $helper          = $this->getToolboxHelper();
     $id_count        = $this->id_count;
-    $label           = $this->labelSingle();
+    $label           = $helper->labelSingle();
     $create_callback = $this->toolboxInfo['callbacks']['create'];
     $access_callback = $this->toolboxInfo['callbacks']['access'];
     $page_callback   = $this->toolboxInfo['callbacks']['page'];
