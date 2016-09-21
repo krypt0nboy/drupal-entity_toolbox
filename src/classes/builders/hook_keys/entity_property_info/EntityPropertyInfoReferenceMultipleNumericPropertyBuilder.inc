@@ -15,10 +15,8 @@ class EntityPropertyInfoReferenceMultipleNumericPropertyBuilder extends EntityPr
     parent::__construct($args);
   }
 
-  /**
-   *
-   */
-  protected function postSetReference() {
-    $this->__set('reference_info', entity_get_info($this->reference));
+  /** {{@inheritdoc}} */
+  protected function buildType() {
+    return 'list<' . parent::buildType() . '>';
   }
 }

@@ -4,14 +4,6 @@
  * Class EntityPropertyInfoPropertiesBuilder
  */
 class EntityPropertyInfoPropertiesBuilder extends EntityPropertyInfoKeyBuilder {
-  /**
-   * @var array $properties
-   */
-  protected $properties = array();
-  /**
-   * @var array $referenceProperties
-   */
-  protected $referenceProperties = array();
 
   /** {{@inheritdoc}} */
   public function __construct(array $args = array()) {
@@ -22,34 +14,6 @@ class EntityPropertyInfoPropertiesBuilder extends EntityPropertyInfoKeyBuilder {
       $args
     );
     parent::__construct($args);
-  }
-
-  /**
-   * @return array
-   */
-  public function getProperties() {
-    return $this->properties;
-  }
-
-  /**
-   * @param array $properties
-   */
-  public function setProperties($properties) {
-    $this->properties = $properties;
-  }
-
-  /**
-   * @return array
-   */
-  public function getReferenceProperties() {
-    return $this->referenceProperties;
-  }
-
-  /**
-   * @param array $referenceProperties
-   */
-  public function setReferenceProperties($referenceProperties) {
-    $this->referenceProperties = $referenceProperties;
   }
 
   /** {{@inheritdoc}} */
@@ -63,35 +27,36 @@ class EntityPropertyInfoPropertiesBuilder extends EntityPropertyInfoKeyBuilder {
     $structure          = array();
     $keyBuildersClasses = array();
     $keyBuildersArgs    = array();
-    $refProps           = $this->extractReferenceProperties(TRUE);
+    $helper             = $this->getPropsHelper();
     foreach ($this->properties as $property => $info) {
-      $propIsRef            = in_array($refProps, $property);
-      $propIsMulti          = $info['multiple'];
+      $isRef                = $helper->propIsReference($property);
+      $isMulti              = $helper->propIsMulti($property);
       $structure[$property] = array(
         'type'   => 'array',
         'method' => 'buildProperty',
       );
       $keyBuilderClass      = 'EntityPropertyInfoPropertyBuilder';
-      if ($propIsRef) {
-        $keyBuilderClass = $propIsMulti ? 'EntityPropertyInfoReferenceMultiplePropertyBuilder' : 'EntityPropertyInfoReferencePropertyBuilder';
+      if ($isRef) {
+        $keyBuilderClass = $isMulti ? 'EntityPropertyInfoReferenceMultiplePropertyBuilder' : 'EntityPropertyInfoReferencePropertyBuilder';
       }
       $keyBuildersArgs[$property]    = array(
         'property_type' => $this->toolboxInfo['properties'][$property]['type'],
         'property_name' => $property,
       );
       $keyBuildersClasses[$property] = $keyBuilderClass;
-      if ($propIsRef) {
+      if ($isRef) {
         $numProp                      = $info['self_numeric_property'];
         $structure[$numProp]          = array(
           'type'   => 'array',
           'method' => 'buildProperty',
         );
-        $numPropBuilderClass          = $propIsMulti ? 'EntityPropertyInfoReferenceNumericMultiplePropertyBuilder' : 'EntityPropertyInfoNumericReferencePropertyBuilder';
+        $numPropBuilderClass          = $isMulti ? 'EntityPropertyInfoReferenceMultipleNumericPropertyBuilder' : 'EntityPropertyInfoReferenceNumericPropertyBuilder';
         $keyBuildersClasses[$numProp] = $numPropBuilderClass;
         $keyBuildersArgs[$numProp]    = array(
-          'property_name'  => $numProp,
-          'reference'      => $info['reference'],
-          'reference_info' => $this->entityGetCachedInfo($info['reference']),
+          'property_name'           => $numProp,
+          'reference_property_name' => $property,
+          'reference'               => $info['reference'],
+          'reference_info'          => $this->entityGetCachedInfo($info['reference']),
         );
       }
     }
@@ -110,6 +75,7 @@ class EntityPropertyInfoPropertiesBuilder extends EntityPropertyInfoKeyBuilder {
    * Extracts and set the reference properties name.
    *
    * @param bool $autoSet
+   *   A boolean indicating if the reference properties should be set when extracted.
    *
    * @return array
    */
@@ -120,7 +86,9 @@ class EntityPropertyInfoPropertiesBuilder extends EntityPropertyInfoKeyBuilder {
         $extract[] = $property;
       }
     }
-    $this->setReferenceProperties($extract);
+    if ($autoSet) {
+      $this->setReferenceProperties($extract);
+    }
 
     return $this->referenceProperties;
   }
@@ -152,10 +120,13 @@ class EntityPropertyInfoPropertiesBuilder extends EntityPropertyInfoKeyBuilder {
 
   /** {{@inheritdoc}} */
   public function build() {
+    $this->setPhase(self::PHZ__BUILD);
+    $this->preBuild();
     foreach (array_keys($this->structure) as $key) {
       $this->setKeyBuild($key, $this->buildProperty($key));
     }
     $this->validateBuild();
+    $this->postBuild();
 
     return $this->deliver();
   }

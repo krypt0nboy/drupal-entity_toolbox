@@ -4,8 +4,11 @@
  * Class FormBuilderBase
  */
 class FormBuilderBase extends BuilderBase {
-  /**
-   * @var string $formId
-   */
-  protected $formId;
+  /** {{@inheritdoc}} */
+  public function __construct(array $args = array()) {
+    $args = $this->mergeConstructArgs(array(
+      'model_class' => 'FormModel'
+    ), $args);
+    parent::__construct($args);
+  }
 }

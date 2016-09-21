@@ -325,6 +325,14 @@ class BuilderBase {
   }
 
   /**
+   * @param $key
+   * @return bool
+   */
+  public function hasKeyBuilder($key) {
+    return !empty($this->keyBuilders[$key]);
+  }
+
+  /**
    * Sets the builder for a given key.
    *
    * @param string            $key
@@ -706,6 +714,7 @@ class BuilderBase {
    * @return array
    */
   protected function genDynamicStructure() {
+    return array();
   }
 
   /**

@@ -17,6 +17,12 @@ class EntityPropertyInfoReferencePropertyBuilder extends EntityPropertyInfoPrope
   }
 
   /** {{@inheritdoc}} */
+  protected function autoSet() {
+    parent::autoSet();
+    $this->autoSetNumericPropertyBuilder();
+  }
+
+  /** {{@inheritdoc}} */
   protected function initTemplateVars(array $vars = array()) {
     $vars += $this->extractReferenceInfoTemplateVars();
     parent::initTemplateVars($vars);
@@ -37,21 +43,30 @@ class EntityPropertyInfoReferencePropertyBuilder extends EntityPropertyInfoPrope
   }
 
   /**
+   * Auto sets numericPropertyBuilder.
+   */
+  protected function autoSetNumericPropertyBuilder() {
+    $numPropertyName = $this->propertyInfo['self_numeric_property'];
+    $parentBuilder   = $this->getParentBuilder();
+    if ($parentBuilder->hasKeyBuilder($numPropertyName)) {
+      /** @var EntityToolboxInfoReferenceNumericPropertyBuilder $numPropBuilder */
+      $numPropBuilder = $parentBuilder->getKeyBuilder($numPropertyName);
+      $this->__set('numeric_property_builder', $numPropBuilder);
+      if (!$numPropBuilder->__isset('reference_property_builder')) {
+        $numPropBuilder->setReferencePropertyBuilder($this);
+      }
+    }
+  }
+
+  /**
    * @return mixed
    */
   public function genNumericPropertyName() {
     return $this->propertyInfo['self_numeric_property'];
   }
 
-  public function genNumericPropertyBuilderArgs() {
-    $args = array(
-      'property_name'              => $this->genNumericPropertyName(),
-      'property_type'              => 'reference_numeric_property',
-      'key_builder_class'          => 'EntityPropertyInfoReferenceNumericPropertyBuilder',
-      'reference'                  => $this->reference,
-      'reference_info'             => $this->referenceInfo,
-      'reference_property_builder' => $this,
-    );
+  /** {{@inheritdoc}} */
+  protected function buildSchemaField() {
   }
 
   /**

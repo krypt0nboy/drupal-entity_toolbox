@@ -47,14 +47,6 @@ class EntityToolboxInfoClassesClassBuilder extends EntityToolboxInfoKeyBuilder {
   }
 
   /**
-   * After class type has been set.
-   */
-  protected function postSetClassType() {
-    $classTypeInfo = entity_toolbox_class_type_get_info($this->classType);
-    $this->__set('class_type_info', $classTypeInfo);
-  }
-
-  /**
    * @return array
    */
   public function getClassTypeInfo() {
@@ -66,6 +58,43 @@ class EntityToolboxInfoClassesClassBuilder extends EntityToolboxInfoKeyBuilder {
    */
   public function setClassTypeInfo($classTypeInfo) {
     $this->classTypeInfo = $classTypeInfo;
+  }
+
+  /**
+   * @return string
+   */
+  public function getBaseClass() {
+    return $this->baseClass;
+  }
+
+  /**
+   * @param string $baseClass
+   */
+  public function setBaseClass($baseClass) {
+    $this->baseClass = $baseClass;
+  }
+
+  /** {{@inheritdoc}} */
+  protected function autoSet() {
+    parent::autoSet();
+    $this->autoSetBaseClass();
+    $this->autoSetClassTypeInfo();
+  }
+
+  /**
+   * Auto sets classTypeInfo.
+   */
+  protected function autoSetClassTypeInfo() {
+    $classTypeInfo = entity_toolbox_class_type_get_info($this->classType);
+    $this->__set('class_type_info', $classTypeInfo);
+  }
+
+  /**
+   * Auto sets classBaseClass.
+   */
+  protected function autoSetBaseClass() {
+    $baseClass = ucfirst(lowercase2camelcase($this->entityType));
+    $this->__set('base_class', $baseClass);
   }
 
   /** {{@inheritdoc}} */

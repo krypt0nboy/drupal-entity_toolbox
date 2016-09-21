@@ -32,6 +32,20 @@ class EntityPropertyInfoPropertyBuilder extends EntityPropertyInfoKeyBuilder {
   }
 
   /** {{@inheritdoc}} */
+  protected function autoSet() {
+    parent::autoSet();
+    $this->autoSetPropertyInfo();
+  }
+
+  /**
+   * Auto sets propertyInfo.
+   */
+  protected function autoSetPropertyInfo() {
+    $propInfo = $this->properties[$this->propertyName];
+    $this->__set('property_info', $propInfo);
+  }
+
+  /** {{@inheritdoc}} */
   protected function initTemplateVars(array $vars = array()) {
     $vars += $this->extractToolboxInfoPropertyTemplateVars();
     parent::initTemplateVars($vars);
@@ -103,8 +117,13 @@ class EntityPropertyInfoPropertyBuilder extends EntityPropertyInfoKeyBuilder {
    * Builds the "schema field".
    */
   protected function buildSchemaField() {
-    if (!empty($this->entityPropertyInfo['key'])) {
-      return $this->processValueTemplate('%property_schemas_fields_name_base%');
+    $name               = $this->propertyName;
+    $helper             = $this->getPropsHelper();
+    $isMulti            = $helper->propIsMulti($name);
+    $isRef              = $helper->propIsReference($name);
+    $hasBaseSchemaField = $helper->propHasSchemaFieldName($name, 'base');
+    if (!$isMulti && !$isRef && $hasBaseSchemaField) {
+      return $helper->propGetSchemaFieldName($name, 'base');
     }
   }
 
