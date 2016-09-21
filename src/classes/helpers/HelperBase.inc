@@ -11,7 +11,6 @@ class HelperBase {
    *   The object containing the data to help with.
    */
   protected $dataHolder;
-
   /**
    * @const ALIAS
    */
@@ -65,10 +64,13 @@ class HelperBase {
   /**
    * Returns the helper data content.
    *
+   * @param null|string $switch
+   *   The data holder property to switch to.
+   *
    * @return array
    */
-  public function alias() {
-    $alias = $this::ALIAS;
+  public function alias($switch = NULL) {
+    $alias = isset($switch) ? $switch : $this::ALIAS;
     if (!empty($alias)) {
       if (property_exists($this->getDataHolder(), $alias)) {
         return $this->dataHolder->__get($alias);
