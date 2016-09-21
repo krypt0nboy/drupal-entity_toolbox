@@ -14,7 +14,7 @@ function entity_toolbox_controller($entity_type, $bundle = NULL) {
   $controllers = &drupal_static(__FUNCTION__, array());
   if (!isset($controllers[$entity_type])) {
     $type_info = entity_toolbox_get_info($entity_type);
-    $class     = $type_info['classes']['controller'];
+    $class     = $type_info['classes']['controller']['class'];
     /** @var \EntityToolboxController */
     $controllers[$entity_type] = new $class($entity_type);
   }

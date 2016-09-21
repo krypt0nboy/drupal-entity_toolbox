@@ -29,7 +29,7 @@ function entity_get_inheritable_properties($entity_type) {
  * @return \array[]
  */
 function entity_get_inherited_properties($entity_type) {
-  return entity_toolbox_controller($entity_type)->inheritedProperties();
+  return entity_toolbox_controller($entity_type)->getInheritedProperties();
 }
 
 /**

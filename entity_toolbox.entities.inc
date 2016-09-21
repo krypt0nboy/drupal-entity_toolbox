@@ -127,7 +127,15 @@ function entity_toolbox_multi_value_property_delete_value($entity_type, $entity,
  * @return array|mixed
  */
 function entity_get_types($entity_type, $type = NULL) {
-  return entity_toolbox_controller($entity_type)->types($type);
+  $toolbox_info = entity_toolbox_get_info($entity_type);
+  if (!empty($toolbox_info['bundle_entity'])) {
+    $bundle_entity = $toolbox_info['bundle_entity'];
+
+    return entity_load_multiple_by_name($bundle_entity, isset($type) ? array($type) : FALSE);
+  }
+  else {
+    return array();
+  }
 }
 
 /**
@@ -139,5 +147,5 @@ function entity_get_types($entity_type, $type = NULL) {
  * @return \string[]
  */
 function entity_get_bundles($entity_type) {
-  return entity_toolbox_controller($entity_type)->getBundles();
+  return entity_get_types($entity_type);
 }

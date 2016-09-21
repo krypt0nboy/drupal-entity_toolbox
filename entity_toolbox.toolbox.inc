@@ -881,9 +881,7 @@ function entity_toolbox_field_category_get_info($category = NULL) {
  * @return array
  */
 function entity_toolbox_entity_parent_properties_get_info($entity_type = NULL) {
-
   $CACHEKEY = ENTITY_TOOLBOX__PARENT_PROPERTY_INFO;
-
   /**
    * Cached since used very often.
    */
