@@ -10,6 +10,8 @@ class WeightProperty extends IntegerProperty {
       'default_type'                => 'weight',
       'default_name'                => 'weight',
       'default_label'               => 'Weight',
+      'default_description'         => 'The weight of this %toolbox_info_entity_type% in comparison to others.',
+      'default_key'                 => 'weight',
       'default_schemas_fields_name' => array(
         'base'              => 'weight',
         'revision'          => 'weight',

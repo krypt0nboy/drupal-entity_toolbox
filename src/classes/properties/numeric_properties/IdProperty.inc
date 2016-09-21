@@ -43,6 +43,9 @@ class IdProperty extends IntegerProperty {
             'unsigned'    => FALSE,
           ),
         ),
+        'default_value'               => array(
+          'default' => '',
+        ),
         'default_weight'              => -999
       ),
       $args
