@@ -6,14 +6,17 @@
 trait ModuleDependentTraits {
   /**
    * @var string $module
+   *   The module's name.
    */
   protected $module;
   /**
    * @var array $moduleInfo
+   *   The module's info.
    */
   protected $moduleInfo = array();
   /**
    * @var array $moduleEntities
+   *   The module's entities.
    */
   protected $moduleEntities = array();
 
@@ -64,14 +67,15 @@ trait ModuleDependentTraits {
    */
   public function autoSetModule() {
     $module = entity_get_module_info($this->entityType);
-    $this->__set('module', $module);
+    $this->setModule($module);
   }
 
   /**
    * Auto set moduleInfo.
    */
   public function autoSetModuleInfo() {
-    $this->__set('module_info', entity_toolbox_module_info_get_info($this->module));
+    $moduleInfo = entity_toolbox_module_info_get_info($this->module);
+    $this->setModuleInfo($moduleInfo);
   }
 
   /**

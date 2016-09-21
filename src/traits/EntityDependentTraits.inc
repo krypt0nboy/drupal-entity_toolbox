@@ -7,11 +7,11 @@ trait EntityDependentTraits {
   /**
    * @var string $entityType
    */
-  public $entityType;
+  protected $entityType;
   /**
    * @var bool $fieldable
    */
-  public $fieldable;
+  protected $fieldable;
 
   /**
    * @return string

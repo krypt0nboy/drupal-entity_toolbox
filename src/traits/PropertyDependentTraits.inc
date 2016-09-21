@@ -6,10 +6,12 @@
 trait PropertyDependentTraits {
   /**
    * @var string $propertyName
+   *   The property name.
    */
   protected $propertyName;
   /**
    * @var string $propertyType
+   *   The property type.
    */
   protected $propertyType;
   /**

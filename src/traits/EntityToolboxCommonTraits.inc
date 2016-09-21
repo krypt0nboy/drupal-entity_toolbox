@@ -18,7 +18,8 @@ trait EntityToolboxCommonTraits {
    * @return mixed
    */
   public function __get($name) {
-    $method = 'get' . lowercase2camelcase($name);
+    $cKey    = lowercase2camelcase($name);
+    $method  = 'get' . $cKey;
     if (method_exists($this, $method)) {
       return $this->$method();
     }
