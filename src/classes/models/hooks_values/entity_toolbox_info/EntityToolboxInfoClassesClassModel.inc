@@ -34,7 +34,6 @@ class EntityToolboxInfoClassesClassModel extends EntityToolboxInfoRecursiveModel
           'path'  => array(
             'type'    => 'string',
             'default' => '%class_default_path%',
-            'model'   => ''
           ),
           'file'  => array(
             'type'    => 'string',

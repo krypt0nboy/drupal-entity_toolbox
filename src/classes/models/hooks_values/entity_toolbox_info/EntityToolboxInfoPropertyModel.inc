@@ -129,7 +129,7 @@ class EntityToolboxInfoPropertyModel extends EntityToolboxInfoRecursiveModel {
             'default' => '%property_default_weight%',
           ),
           'self_numeric_property' => array(
-            'type'     => 'array',
+            'type'     => 'string',
             'method'   => 'buildSelfNumericProperty',
           ),
         )

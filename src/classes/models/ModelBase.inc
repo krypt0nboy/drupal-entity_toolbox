@@ -5,7 +5,6 @@
  */
 class ModelBase {
   use EntityToolboxCommonTraits;
-
   /**
    * @access protected
    * @var array $structure
@@ -49,17 +48,6 @@ class ModelBase {
    */
   public function getStructure() {
     return $this->structure;
-  }
-
-  public function extractTemplateVarNames() {
-    $extract = array();
-    foreach ($this->getStructure() as $key => $param) {
-      if ($param['type'] == 'string' && !empty($param['default']) && preg_match('/%(\w+)%/', $param['default'])) {
-        $extract[preg_replace('/%/', '', $param['default'])] = $param['default'];
-      }
-    }
-
-    return $extract;
   }
 
 }
