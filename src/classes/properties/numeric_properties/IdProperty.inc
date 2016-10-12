@@ -46,6 +46,11 @@ class IdProperty extends IntegerProperty {
         'default_value'               => array(
           'default' => '',
         ),
+        'default_forms'               => array(
+          'edit' => array(
+            'expose' => FALSE
+          )
+        ),
         'default_weight'              => -999
       ),
       $args

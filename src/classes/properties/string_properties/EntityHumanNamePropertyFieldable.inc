@@ -10,7 +10,7 @@ class EntityHumanNamePropertyFieldable extends EntityHumanNameProperty {
       array(
         'default_key'                 => 'name',
         'default_label'               => '%toolbox_info_labels_single% name',
-        'default_description'         => 'The name of this %toolbox_info_labels_single_lowercase% type.',
+        'default_description'         => 'The name of this %toolbox_info_labels_single_lowercase%.',
         'default_schemas_fields_name' => array(
           'base'     => 'name',
           'revision' => 'name',

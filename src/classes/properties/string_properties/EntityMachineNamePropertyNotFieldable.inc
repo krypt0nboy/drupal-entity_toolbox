@@ -15,6 +15,9 @@ class EntityMachineNamePropertyNotFieldable extends EntityMachineNameProperty {
           'options_list' => '%toolbox_info_entity_type%_get_types',
         ),
         'default_is_unique'   => TRUE,
+        'default_value'       => array(
+          'source' => 'label'
+        ),
       ),
       $args
     );

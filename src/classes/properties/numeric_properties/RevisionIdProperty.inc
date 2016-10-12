@@ -27,8 +27,8 @@ class RevisionIdProperty extends IntegerProperty {
             'description' => 'The current {%toolbox_info_tables_base%}.vid version identifier.',
             'type'        => 'int',
             'unsigned'    => TRUE,
-            'not null'    => TRUE,
-            'default'     => 0,
+            'not null'    => FALSE,
+            'default'     => NULL,
           ),
           'revision'          => array(
             'description' => 'The primary identifier for this version.',
@@ -40,15 +40,20 @@ class RevisionIdProperty extends IntegerProperty {
           'relation'          => array(
             'description' => 'The current {%toolbox_info_tables_base%}.vid version identifier.',
             'type'        => 'int',
-            'not null'    => TRUE,
-            'default'     => 0,
+            'not null'    => FALSE,
+            'default'     => NULL,
           ),
           'relation_revision' => array(
             'description' => 'The current {%toolbox_info_tables_base%}.vid version identifier.',
             'type'        => 'int',
-            'not null'    => TRUE,
-            'default'     => 0,
+            'not null'    => FALSE,
+            'default'     => NULL,
           ),
+        ),
+        'default_forms'               => array(
+          'edit' => array(
+            'expose' => FALSE
+          )
         ),
         'default_weight'              => -998
       ),

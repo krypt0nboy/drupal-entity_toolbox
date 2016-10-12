@@ -28,8 +28,13 @@ class AuthorProperty extends UserProperty {
             'description' => 'The {users}.uid that created the %toolbox_info_labels_single%.',
           ),
         ),
+        'default_forms'          => array(
+          'edit' => array(
+            'expose' => FALSE
+          )
+        ),
         'default_views_expose'   => TRUE,
-        'default_weight'              => 1
+        'default_weight'         => 1
       ),
       $args
     );

@@ -125,14 +125,14 @@ class EntityToolboxPropertyBase {
         'default_serialize'           => FALSE,
         'default_key'                 => '',
         'default_tables'              => array(
-          'relation'          => '%toolbox_info_entity_type%_has_%property_reference_machine_name_plural%',
-          'relation_revision' => '%toolbox_info_entity_type%_has_%property_reference_machine_name_plural%_revision',
+          'relation'          => '%toolbox_info_entity_type%_has_%reference_info_machine_name_plural%',
+          'relation_revision' => '%toolbox_info_entity_type%_has_%reference_info_machine_name_plural%_revision',
         ),
         'default_schemas_fields_name' => array(
           'base'              => '',
-          'revision'          => '%property_default_schemas_fields_name_base%_revision',
+          'revision'          => '%property_default_schemas_fields_name_base%',
           'relation'          => '',
-          'relation_revision' => '%property_default_schemas_fields_name_relation%_revision',
+          'relation_revision' => '%property_default_schemas_fields_name_relation%',
         ),
         'default_schemas_fields'      => array(
           'base'              => array(
@@ -199,7 +199,7 @@ class EntityToolboxPropertyBase {
         'default_forms'               => array(
           'edit'   => array(
             'expose'   => TRUE,
-            'widget'   => '',
+            'widget'   => 'textfield',
             'required' => TRUE,
             'cols'     => '',
             'rows'     => '',
@@ -248,6 +248,7 @@ class EntityToolboxPropertyBase {
           'ceil'       => NULL,
           'filter'     => array(),
           'forbid'     => array(),
+          'source'     => '',
         ),
         'default_children_inherit'    => FALSE,
         'default_weight'              => 0,

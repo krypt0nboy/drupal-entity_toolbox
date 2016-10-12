@@ -11,7 +11,7 @@ class BundleProperty extends MachineNameProperty {
         'default_type'                => 'bundle',
         'default_drupal_type'         => 'token',
         'default_name'                => 'type',
-        'default_key'                 => 'type',
+        'default_key'                 => 'bundle',
         'default_label'               => 'Type',
         'default_required'            => TRUE,
         'default_description'         => 'The %toolbox_info_labels_single_lowercase% type.',
@@ -30,6 +30,7 @@ class BundleProperty extends MachineNameProperty {
         'default_forms'               => array(
           'edit'   => array(
             'expose' => FALSE,
+            'widget' => 'machine_name'
           ),
           'inline' => array(
             'expose' => FALSE,
