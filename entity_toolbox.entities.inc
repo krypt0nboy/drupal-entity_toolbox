@@ -49,7 +49,9 @@ function entity_property_type_default($entity_type, $name) {
  * @return mixed
  */
 function entity_property_default($entity_type, $entity, $name) {
-  return !empty($entity->$name) ? $entity->$name : entity_property_type_default($entity_type, $name);
+  $info           = entity_get_info($entity_type);
+  $key            = $info['entity keys'][$name];
+  return !empty($entity->$key) ? $entity->$key : entity_property_type_default($entity_type, $name);
 }
 
 /**

@@ -5,16 +5,6 @@
  */
 
 /**
- * Number of seconds in a day.
- */
-define('CACHE_DAILY', 86400);
-
-/**
- * Number of seconds in a week.
- */
-define('CACHE_WEEKLY', 604800);
-
-/**
  * Cache cid for entity_toolbox cache info.
  * @see hook_entity_toolbox_cache_info().
  * @see entity_toolbox_cache_get_info().
@@ -33,13 +23,6 @@ define('ENTITY_TOOLBOX__HOOK_REGISTER_INFO', 'entity_toolbox_hook_register_info'
  * @see entity_toolbox_property_type_get_info().
  */
 define('ENTITY_TOOLBOX__PROPERTY_TYPE_INFO', 'entity_toolbox_property_type_info');
-
-/**
- * Cache cid for property widget info.
- * @see hook_toolbox_property_widget_info().
- * @see entity_toolbox_property_widget_get_info().
- */
-define('ENTITY_TOOLBOX__PROPERTY_WIDGET_INFO', 'entity_toolbox_property_widget_info');
 
 /**
  * Cache cid for schema type info.
@@ -140,6 +123,27 @@ define('ENTITY_TOOLBOX__INHERITABLE_FIELD_INFO', 'inheritable_field_info');
 define('ENTITY_TOOLBOX__INHERITED_FIELD_INFO', 'inherited_field_info');
 
 /**
+ * Implements @see hook_flush_caches().
+ */
+function entity_toolbox_flush_caches() {
+  return array(ENTITY_TOOLBOX_DB__CACHE);
+}
+
+/**
+ * Implements hook_admin_menu_cache_info().
+ *
+ * @see entity_toolbox_cache_clear_all().
+ */
+function entity_toolbox_admin_menu_cache_info() {
+  $caches['entity_toolbox'] = array(
+    'title'    => t('Entity toolbox'),
+    'callback' => 'entity_toolbox_cache_clear_all',
+  );
+
+  return $caches;
+}
+
+/**
  * Cache data fore entity toolbox in cache_entity_toolbox.
  * Sets the cache in entity_toolbox cache table.
  *
@@ -151,11 +155,7 @@ define('ENTITY_TOOLBOX__INHERITED_FIELD_INFO', 'inherited_field_info');
  *   The expiration in seconds.
  */
 function entity_toolbox_cache_set($cid, $data, $expire = CACHE_PERMANENT) {
-  $cache_enabled = variable_get('cache_enabled');
-  list($expires, $cache) = array_values(entity_toolbox_cache_get_info($cid));
-  if ($cache_enabled && $cache) {
-    cache_set($cid, $data, ENTITY_TOOLBOX_DB__CACHE, isset($expires) ? $expires : $expire);
-  }
+  generic_cache_set(ENTITY_TOOLBOX_DB__CACHE, $cid, $data, $expire);
 }
 
 /**
@@ -168,7 +168,7 @@ function entity_toolbox_cache_set($cid, $data, $expire = CACHE_PERMANENT) {
  * @return null|object
  */
 function entity_toolbox_cache_get($cid) {
-  return cache_get($cid, ENTITY_TOOLBOX_DB__CACHE);
+  return generic_cache_get(ENTITY_TOOLBOX_DB__CACHE, $cid);
 }
 
 /**
@@ -181,11 +181,7 @@ function entity_toolbox_cache_get($cid) {
  * @see hook_entity_toolbox_cache_info().
  */
 function entity_toolbox_cache_clear($cid) {
-  cache_clear_all($cid, ENTITY_TOOLBOX_DB__CACHE);
-  list(, $clears) = array_values(entity_toolbox_cache_get_info($cid));
-  foreach ($clears as $clear) {
-    cache_clear_all($clear, ENTITY_TOOLBOX_DB__CACHE);
-  }
+  generic_cache_clear(ENTITY_TOOLBOX_DB__CACHE, $cid);
 }
 
 /**
@@ -198,27 +194,24 @@ function entity_toolbox_cache_clear_all() {
 /**
  * Implements hook_entity_toolbox_cache_info().
  */
-function entity_toolbox_entity_toolbox_cache_info() {
-  $info                                            = array();
-  $info[ENTITY_TOOLBOX__HOOK_REGISTER_INFO]        = array(
+function entity_toolbox_cache_info() {
+  $info                                                                      = array();
+  $info[ENTITY_TOOLBOX_DB__CACHE][ENTITY_TOOLBOX__HOOK_REGISTER_INFO]        = array(
     'expires' => CACHE_PERMANENT
   );
-  $info[ENTITY_TOOLBOX__CLASS_TYPE_INFO]           = array(
+  $info[ENTITY_TOOLBOX_DB__CACHE][ENTITY_TOOLBOX__CLASS_TYPE_INFO]           = array(
     'expires' => CACHE_PERMANENT
   );
-  $info[ENTITY_TOOLBOX__PROPERTY_TYPE_INFO]        = array(
+  $info[ENTITY_TOOLBOX_DB__CACHE][ENTITY_TOOLBOX__PROPERTY_TYPE_INFO]        = array(
     'expires' => CACHE_PERMANENT,
   );
-  $info[ENTITY_TOOLBOX__PROPERTY_WIDGET_INFO]      = array(
+  $info[ENTITY_TOOLBOX_DB__CACHE][ENTITY_TOOLBOX__SCHEMA_TYPE_INFO]          = array(
     'expires' => CACHE_PERMANENT,
   );
-  $info[ENTITY_TOOLBOX__SCHEMA_TYPE_INFO]          = array(
+  $info[ENTITY_TOOLBOX_DB__CACHE][ENTITY_TOOLBOX__CALLBACK_TYPE_INFO]        = array(
     'expires' => CACHE_PERMANENT,
   );
-  $info[ENTITY_TOOLBOX__CALLBACK_TYPE_INFO]        = array(
-    'expires' => CACHE_PERMANENT,
-  );
-  $info[ENTITY_TOOLBOX__ENTITY_INFO]               = array(
+  $info[ENTITY_TOOLBOX_DB__CACHE][ENTITY_TOOLBOX__ENTITY_INFO]               = array(
     'expires' => CACHE_PERMANENT,
     'cache'   => TRUE,
     'clear'   => array(
@@ -235,46 +228,49 @@ function entity_toolbox_entity_toolbox_cache_info() {
       'module_pre_install',
     )
   );
-  $info[ENTITY_TOOLBOX__TMP_ENTITY_INFO]           = array(
+  $info[ENTITY_TOOLBOX_DB__CACHE][ENTITY_TOOLBOX__TMP_ENTITY_INFO]           = array(
     'expires' => CACHE_PERMANENT,
     'cache'   => TRUE,
   );
-  $info[ENTITY_TOOLBOX__PARENT_PROPERTY_INFO]           = array(
+  $info[ENTITY_TOOLBOX_DB__CACHE][ENTITY_TOOLBOX__PARENT_PROPERTY_INFO]      = array(
     'expires' => CACHE_PERMANENT,
   );
-  $info[ENTITY_TOOLBOX__ENTITY_SCHEMA]             = array(
+  $info[ENTITY_TOOLBOX_DB__CACHE][ENTITY_TOOLBOX__ENTITY_SCHEMA]             = array(
     'expires' => CACHE_PERMANENT,
     'clear'   => array(),
     'hooks'   => array(
       'module_install',
     )
   );
-  $info[ENTITY_TOOLBOX__ENTITY_GROUP_INFO]         = array(
+  $info[ENTITY_TOOLBOX_DB__CACHE][ENTITY_TOOLBOX__ENTITY_GROUP_INFO]         = array(
     'expires' => CACHE_PERMANENT,
   );
-  $info[ENTITY_TOOLBOX__FIELD_CATEGORY_GROUP_INFO] = array(
+  $info[ENTITY_TOOLBOX_DB__CACHE][ENTITY_TOOLBOX__FIELD_CATEGORY_GROUP_INFO] = array(
     'expires' => CACHE_PERMANENT
   );
-  $info[ENTITY_TOOLBOX__FIELD_CATEGORY_INFO]       = array(
+  $info[ENTITY_TOOLBOX_DB__CACHE][ENTITY_TOOLBOX__FIELD_CATEGORY_INFO]       = array(
     'expires' => CACHE_PERMANENT
   );
-  $info[ENTITY_TOOLBOX__ENTITY_GROUP_ATTACH_INFO]  = array(
+  $info[ENTITY_TOOLBOX_DB__CACHE][ENTITY_TOOLBOX__ENTITY_GROUP_ATTACH_INFO]  = array(
     'expires' => CACHE_PERMANENT,
   );
-  $info[ENTITY_TOOLBOX__INHERITABLE_PROPERTY_INFO] = array(
+  $info[ENTITY_TOOLBOX_DB__CACHE][ENTITY_TOOLBOX__INHERITABLE_PROPERTY_INFO] = array(
     'expires' => CACHE_PERMANENT,
   );
-  $info[ENTITY_TOOLBOX__INHERITED_PROPERTY_INFO]   = array(
+  $info[ENTITY_TOOLBOX_DB__CACHE][ENTITY_TOOLBOX__INHERITED_PROPERTY_INFO]   = array(
     'expires' => CACHE_PERMANENT,
-    'cache' => FALSE,
+    'cache'   => FALSE,
   );
-  $info[ENTITY_TOOLBOX__INHERITABLE_FIELD_INFO]    = array(
-    'expires' => CACHE_PERMANENT,
-  );
-  $info[ENTITY_TOOLBOX__FIELD_CATEGORY_GROUP_INFO] = array(
+  $info[ENTITY_TOOLBOX_DB__CACHE][ENTITY_TOOLBOX__INHERITABLE_FIELD_INFO]    = array(
     'expires' => CACHE_PERMANENT,
   );
-  $info[ENTITY_TOOLBOX__FIELD_CATEGORY_INFO]       = array(
+  $info[ENTITY_TOOLBOX_DB__CACHE][ENTITY_TOOLBOX__FIELD_CATEGORY_GROUP_INFO] = array(
+    'expires' => CACHE_PERMANENT,
+  );
+  $info[ENTITY_TOOLBOX_DB__CACHE][ENTITY_TOOLBOX__FIELD_CATEGORY_INFO]       = array(
+    'expires' => CACHE_PERMANENT,
+  );
+  $info[ENTITY_TOOLBOX_DB__CACHE]['entity_settings_info']                    = array(
     'expires' => CACHE_PERMANENT,
   );
 

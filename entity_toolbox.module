@@ -43,7 +43,6 @@ define('DEFAULT_PRECISION', variable_get('default_precision', 10));
 define('DEFAULT_SCALE', variable_get('default_scale', 2));
 
 module_load_include('inc', 'entity_toolbox', 'entity_toolbox.admin');
-module_load_include('inc', 'entity_toolbox', 'entity_toolbox.toolbox.build');
 module_load_include('inc', 'entity_toolbox', 'entity_toolbox.build');
 module_load_include('inc', 'entity_toolbox', 'entity_toolbox.factories');
 module_load_include('inc', 'entity_toolbox', 'entity_toolbox.cache');
@@ -57,6 +56,15 @@ module_load_include('inc', 'entity_toolbox', 'entity_toolbox.hooks');
 module_load_include('inc', 'entity_toolbox', 'entity_toolbox.themes');
 module_load_include('inc', 'entity_toolbox', 'entity_toolbox.toolbox');
 module_load_include('inc', 'entity_toolbox', 'entity_toolbox.ui');
+module_load_include('inc', 'entity_toolbox', 'entity_toolbox.info_queries');
+module_load_include('inc', 'entity_toolbox', 'entity_toolbox.invoke');
+module_load_include('inc', 'entity_toolbox', 'src/classes/operations/EntityToolboxOperationsAdd');
+module_load_include('inc', 'entity_toolbox', 'src/classes/operations/add/EntityToolboxOperationsAddFieldable');
+module_load_include('inc', 'entity_toolbox', 'src/classes/operations/add/EntityToolboxOperationsAddNotFieldable');
+module_load_include('inc', 'entity_toolbox', 'src/classes/operations/edit/EntityToolboxOperationsEditFieldable');
+module_load_include('inc', 'entity_toolbox', 'src/classes/operations/edit/EntityToolboxOperationsEditNotFieldable');
+module_load_include('inc', 'entity_toolbox', 'src/classes/operations/view/EntityToolboxOperationsViewFieldable');
+module_load_include('inc', 'entity_toolbox', 'src/classes/operations/view/EntityToolboxOperationsViewNotFieldable');
 
 /**
  * Implements hook_menu().
@@ -82,27 +90,6 @@ function entity_toolbox_menu() {
   );
 
   return $items;
-}
-
-/**
- * Implements @see hook_flush_caches().
- */
-function entity_toolbox_flush_caches() {
-  return array(ENTITY_TOOLBOX_DB__CACHE);
-}
-
-/**
- * Implements hook_admin_menu_cache_info().
- *
- * @see entity_toolbox_cache_clear_all().
- */
-function entity_toolbox_admin_menu_cache_info() {
-  $caches['entity_toolbox'] = array(
-    'title'    => t('Entity toolbox'),
-    'callback' => 'entity_toolbox_cache_clear_all',
-  );
-
-  return $caches;
 }
 
 /**
@@ -186,11 +173,11 @@ function entity_toolbox_class_type_info() {
     ),
   );
   $info['ui controller'] = array(
-    'base class' => 'EntityToolboxUIController%fieldable%',
+    'base class' => 'EntityToolboxUiController%fieldable%',
     'default'    => array(
-      'class' => '%class_base_class%UIController',
+      'class' => '%class_base_class%UiController',
       'path'  => '%toolbox_info_module_path%/src/classes/controllers',
-      'file'  => '%class_base_class%UIController.inc',
+      'file'  => '%class_base_class%UiController.inc',
     ),
   );
 
@@ -369,7 +356,6 @@ function entity_toolbox_toolbox_callback_type_info() {
  */
 function entity_toolbox_modules_installed($modules) {
   //Clear the cache that needs to be cleared when this hook is invoked.
-  _toolbox_cache_clear('modules_installed');
 }
 
 /**
@@ -377,5 +363,53 @@ function entity_toolbox_modules_installed($modules) {
  */
 function entity_toolbox_field_create_instance($instance) {
   //Clear the cache that needs to be cleared when this hook is invoked.
-  _toolbox_cache_clear('field_create_instance');
+}
+
+/**
+ * Implements hook_permission_tpl_info().
+ */
+function entity_toolbox_permission_tpl_info() {
+  $info                              = array();
+  $info['administer_group_entities'] = array(
+    'tpl'   => 'administer.%group%.entities',
+    'group' => 'entities'
+  );
+
+  return $info;
+}
+
+/**
+ * Implements hook_entity_info_alter().
+ */
+function entity_toolbox_entity_info_alter(&$entity_info) {
+  //@todo replace with builder
+  foreach ($entity_info as $type => $i) {
+    if (is_entity_toolbox_entity($type)) {
+      $info = &$entity_info[$type];
+      if (entity_type_is_fieldable($type)) {
+        $function  = entity_type_callbacks($type, 'get_types');
+        $get_types = $function();
+        /** @var EntityToolboxNotFieldable $bundle */
+        foreach ($get_types as $bundle) {
+          $type_                          = $bundle->entityType();
+          $real_path                      = paths_join(entity_type_root_path($type_), array(
+            'manage',
+            $bundle->type
+          ), FALSE);
+          $info['bundles'][$bundle->type] = array(
+            'label' => $bundle->label,
+            'admin' => array(
+              'path'             => paths_join(entity_type_root_path($type_), array(
+                'manage',
+                "%$type_"
+              ), FALSE),
+              'real path'        => $real_path,
+              'bundle argument'  => path_head_pos($real_path),
+              'access arguments' => array('access administration pages'),
+            ),
+          );
+        }
+      }
+    }
+  }
 }

@@ -30,20 +30,6 @@ function entity_toolbox_settings_form($form, &$form_state) {
     '#title'         => t('Notifications enabled'),
     '#default_value' => variable_get('notifications_enabled', TRUE)
   );
-  $form['properties']                      = array(
-    '#type'  => 'fieldset',
-    '#title' => t('Properties settings'),
-  );
-  $form['properties']['default_precision'] = array(
-    '#type'          => 'textfield',
-    '#title'         => t('Default precision for DecimalProperty'),
-    '#default_value' => variable_get('default_precision', 10)
-  );
-  $form['properties']['default_scale']     = array(
-    '#type'          => 'textfield',
-    '#title'         => t('Default scale for DecimalProperty'),
-    '#default_value' => variable_get('default_scale', 2)
-  );
 
   return system_settings_form($form);
 }

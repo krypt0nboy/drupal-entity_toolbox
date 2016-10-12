@@ -8,6 +8,36 @@
  */
 
 /**
+ * Return build info for entity_toolbox_info().
+ *
+ * @param string $type
+ *   The entity type.
+ * @param array  $info
+ *   The retrieved raw entity_toolbox_info.
+ *
+ * @return array
+ */
+function entity_toolbox_info_build($type, $info) {
+  $instanceArgs = array(
+    'entity_type' => $type,
+    'raw_data'    => $info['raw_data'],
+    'fieldable'   => $info['raw_data']['fieldable'],
+    'module'      => $info['raw_data']['module'],
+  );
+  $factoryArgs  = array(
+    'entity_type'   => $type,
+    'fieldable'     => $info['raw_data']['fieldable'],
+    'instance_args' => $instanceArgs
+  );
+  $factory      = hook_get_builder_factory('entity_toolbox_info', $factoryArgs);
+  /** @var EntityToolboxInfoBuilder $builder */
+  $builder = $factory->getInstance();
+  $build   = $builder->build();
+
+  return $build;
+}
+
+/**
  * Returns a built hook data.
  *
  * @param string $hook
@@ -85,6 +115,26 @@ function entity_info_retrieve($entity_type) {
   $toolbox_info = entity_toolbox_get_info($entity_type);
 
   return array($entity_type => $toolbox_info['entity_info']);
+}
+
+/**
+ * Alters the entity info.
+ *
+ * @param string $entity_type
+ * @param array  $info
+ *   The info retrieved by entity_get_info.
+ */
+function entity_info_alter($entity_type, &$info) {
+  $instanceArgs = array(
+    'entity_type' => $entity_type,
+  );
+  $factoryArgs  = array(
+    'entity_type'   => $entity_type,
+    'instance_args' => $instanceArgs,
+  );
+  /** @var EntityInfoAlterBuilder $builder */
+  $builder = hook_get_builder('entity_info_alter', $factoryArgs);
+  $builder->alter($info);
 }
 
 /**
@@ -178,7 +228,8 @@ function schema_build($entity_type) {
  *
  * @see hook_schema_alter().
  */
-function schema_alter_build(&$schema, $entity_type) {}
+function schema_alter_build(&$schema, $entity_type) {
+}
 
 /**
  * Returns build info for hook_permissions().

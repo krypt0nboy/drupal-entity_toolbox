@@ -5,12 +5,15 @@ version = 7.x-1.0-beta1
 
 # Dependencies
 dependencies[] = entity
-dependencies[] = views
-dependencies[] = views_ui
+;dependencies[] = views
+;dependencies[] = views_ui
 dependencies[] = ctools
-dependencies[] = entityreference
-dependencies[] = inline_entity_form
+;dependencies[] = entityreference
+;dependencies[] = inline_entity_form
 dependencies[] = entity_operations
+dependencies[] = php_plus
+dependencies[] = drupal_plus
+;dependencies[] = oop
 
 # Features
 features[ctools][] = views:views_default:3.0
@@ -91,6 +94,7 @@ files[] = src/classes/builders/hook_keys/entity_toolbox_info/properties/EntityTo
 files[] = src/classes/builders/hook_keys/entity_toolbox_info/properties/EntityToolboxInfoPropertiesBuilderNotFieldable.inc
 files[] = src/classes/builders/hook_keys/entity_toolbox_info/properties/EntityToolboxInfoPropertyDependentKeyBuilder.inc
 files[] = src/classes/builders/hook_keys/entity_toolbox_info/properties/EntityToolboxInfoReferencePropertyBuilder.inc
+files[] = src/classes/builders/hook_keys/entity_toolbox_info/properties/EntityToolboxInfoSelfReferencePropertyBuilder.inc
 files[] = src/classes/builders/hook_keys/entity_toolbox_info/properties/EntityToolboxInfoPropertyBuilder.inc
 files[] = src/classes/builders/hook_keys/entity_toolbox_info/properties/callbacks/EntityToolboxInfoPropertyCallbacksBuilder.inc
 files[] = src/classes/builders/hook_keys/entity_toolbox_info/properties/forms/EntityToolboxInfoPropertyFormsBuilder.inc
@@ -134,6 +138,8 @@ files[] = src/classes/builders/hook_keys/permission/PermissionEntityPermissionsB
 files[] = src/classes/builders/hook_keys/theme/EntityThemeBuilder.inc
 files[] = src/classes/builders/hook_keys/theme/ThemeKeyBuilder.inc
 files[] = src/classes/builders/hook_keys/theme/ThemeThemeBuilder.inc
+
+files[] = src/classes/builders/hook_keys/entity_operation_info/EntityOperationInfoOperationBuilder.inc
 
 # Properties
 files[] = src/classes/properties/numeric_properties/FloatProperty.inc
@@ -252,6 +258,8 @@ files[] = src/classes/models/ModelBase.inc
 
 # Operations
 files[] = src/classes/operations/EntityToolboxOperationsAdd.inc
+files[] = src/classes/operations/add/EntityToolboxOperationsAddFieldable.inc
+files[] = src/classes/operations/add/EntityToolboxOperationsAddNotFieldable.inc
 files[] = src/classes/operations/EntityToolboxOperationsDelete.inc
 files[] = src/classes/operations/EntityToolboxOperationsEdit.inc
 files[] = src/classes/operations/EntityToolboxOperationsView.inc

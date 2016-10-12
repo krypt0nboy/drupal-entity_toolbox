@@ -1,6 +1,26 @@
 <?php
 
 /**
+ * @param       $entity_type
+ * @param       $entity
+ * @param       $setting
+ * @param       $form
+ * @param       $form_state
+ * @param null  $langcode
+ * @param array $options
+ */
+function entity_setting_attach_form($entity_type, $entity, $setting, &$form, &$form_state, $langcode = NULL, $options = array()) {
+  $setting_info = entity_setting_extract_info($entity_type, $setting);
+
+  //identify group
+  //identify tab
+  $var_name = concat($setting, $entity_type);
+  $var      = variable_get($var_name, !empty($setting_info['default']) ? $setting_info['default'] : NULL);
+
+  //build element
+}
+
+/**
  * Build and attaches a field ui form to add heritage settings.
  *
  * @param array $form
@@ -40,39 +60,9 @@ function field_heritage_settings_attach(&$form, &$form_state) {
  *   The property fields options.
  */
 function properties_attach_form($entity_type, $entity, &$form, &$form_state, $langcode = NULL, $options = array()) {
-  foreach ($entity->toolboxInfo()['properties'] as $name => $property) {
-    property_attach_form($entity_type, $entity, $name, $form, $form_state, $langcode, $options);
-  }
-}
-
-/**
- * Attach a property to an entity form.
- *
- * @param string         $entity_type
- *   The entity type.
- * @param \EntityToolbox $entity
- *   The entity.
- * @param string         $name
- *   The property name.
- * @param array          $form
- *   The form, passed by reference.
- * @param array          $form_state
- *   The form_state, passed by reference.
- * @param string         $langcode
- *   The language code.
- * @param array          $options
- *   The property fields options.
- */
-function property_attach_form($entity_type, $entity, $name, &$form, &$form_state, $langcode = NULL, $options = array()) {
-  $toolbox_info = $entity->toolboxInfo();
-  $property     = $toolbox_info['properties'][$name];
-  //Check if the property is set to be exposed for this form.
-  if (!empty($property['expose']['forms'][entity_form_type($form['form_id'])])) {
-    $function = is_property_multi_value($entity_type, $name) ? 'property_multi_attach_form' : 'property_single_attach_form';
-    $function($entity_type, $entity, $name, $form, $form_state, $langcode, $options);
-    foreach (module_implements('property_attach_form') as $module) {
-      $hook = $module . '_property_attach_form';
-      $hook($entity_type, $entity, $name, $form, $form_state, $langcode, $options);
+  foreach (entity_type_form_exposed_properties($entity_type, entity_form_extract_type_from_id($form['form_id'])) as $name => $info) {
+    if ($info['type'] != 'entity_machine_name') {
+      property_attach_form($entity_type, $entity, $name, $form, $form_state, $langcode, $options);
     }
   }
 }
@@ -95,8 +85,38 @@ function property_attach_form($entity_type, $entity, $name, &$form, &$form_state
  * @param array          $options
  *   The property fields options.
  */
+function property_attach_form($entity_type, $entity, $name, &$form, &$form_state, $langcode = NULL, $options = array()) {
+  //Check if the property is set to be exposed for this form.
+  $function = is_property_multi_value($entity_type, $name) ? 'property_multi_attach_form' : 'property_single_attach_form';
+  $function($entity_type, $entity, $name, $form, $form_state, $langcode, $options);
+  foreach (module_implements('property_attach_form') as $module) {
+    $hook = $module . '_property_attach_form';
+    $hook($entity_type, $entity, $name, $form, $form_state, $langcode, $options);
+  }
+}
+
+/**
+ * Attach a property to an entity form.
+ *
+ * @param string         $entity_type
+ *   The entity type.
+ * @param \EntityToolbox $entity
+ *   The entity.
+ * @param string         $name
+ *   The property name.
+ * @param array          $form
+ *   The form, passed by reference.
+ * @param array          $form_state
+ *   The form_state, passed by reference.
+ * @param string         $langcode
+ *   The language code.
+ * @param array          $options
+ *   The property fields options.
+ */
 function property_single_attach_form($entity_type, $entity, $name, &$form, &$form_state, $langcode = NULL, $options = array()) {
-  $form[$name] = property_element_build($entity_type, $entity, $name, $form['form_id'], NULL, $options);
+  $info       = entity_get_info($entity_type);
+  $key        = $info['entity keys'][$name];
+  $form[$key] = property_element_build($entity_type, $entity, $name, $form['form_id'], NULL, $options);
 }
 
 /**
@@ -118,7 +138,9 @@ function property_single_attach_form($entity_type, $entity, $name, &$form, &$for
  *   The property fields options.
  */
 function property_multi_attach_form($entity_type, $entity, $name, &$form, &$form_state, $langcode = NULL, $options = array()) {
-  $form[$name] = property_element_build($entity_type, $entity, $name, $form['form_id'], NULL, $options);
+  $info       = entity_get_info($entity_type);
+  $key        = $info['entity keys'][$name];
+  $form[$key] = property_element_build($entity_type, $entity, $name, $form['form_id'], NULL, $options);
 }
 
 /**
@@ -145,15 +167,35 @@ function property_multi_attach_form($entity_type, $entity, $name, &$form, &$form
  * @todo handle multiple properties with add_more_wrapper.
  */
 function property_element_build($entity_type, $entity, $name, $form_id, $widget = NULL, $options = array()) {
-  $toolbox_info = $entity->toolboxInfo();
-  $property     = $toolbox_info['properties'][$name];
-  $element      = array(
-    '#type'          => toolbox_widget2form_field_type($widget, $property['multiple']),
+  $property       = entity_type_properties($entity_type, $name);
+  $id             = entity_id($entity_type, $entity);
+  $prop_form_info = $property['forms'][entity_form_extract_type_from_id($form_id)];
+  $widget         = isset($widget) ? $widget : $prop_form_info['widget'];
+  $element        = array(
+    '#type'          => $widget,
     '#title'         => $property['label'],
-    '#description'   => !empty($property['description']) ? $property['description'] : '',
+    '#description'   => $property['description'],
     '#default_value' => entity_property_default($entity_type, $entity, $name),
-    '#required'      => $property['required'][entity_form_type($form_id)],
+    '#required'      => $prop_form_info['required'],
   );
+  switch ($prop_form_info['widget']) {
+    case 'select';
+      $references = entity_reference_select_options($entity_type, $entity, $name);
+      if (is_property_self_parent($entity_type, $name)) {
+        unset($references[$id]);
+      }
+      $element['#empty_value'] = '-- SELECT --';
+      $element['#options']     = $references;
+      break;
+    case 'machine_name':
+      $element['#machine_name'] = array(
+        'source' => array($prop_form_info['source']),
+        'exists' => $prop_form_info['exists']
+      );
+      break;
+    default:
+      break;
+  }
 
   //Let other modules alter the element.
   _property_element_alter($element, $entity_type, $entity, $name, $form_id, $widget, $options);
@@ -197,13 +239,13 @@ function property_element_ajax_build($entity_type, $entity, $name, $form_id, $wi
 /**
  * Implements hook_property_element_alter().
  */
-function entity_toolbox_property_element_alter($entity_type, $entity, $name, $form_id, &$element, $widget = NULL, $options = array()) {
+function entity_toolbox_property_element_alter(&$element, $entity_type, $entity, $name, $form_id, $widget = NULL, $options = array()) {
   /**
    * Check if the property is to be inherited from one or more parents
    */
-  if (in_array($name, array_keys(entity_get_inherited_properties($entity_type)))) {
-    $element['#ajax'] = property_element_ajax_build($entity_type, $entity, $name, $form_id, $widget, $options);
-  }
+//  if (in_array($name, array_keys(entity_get_inherited_properties($entity_type)))) {
+//    $element['#ajax'] = property_element_ajax_build($entity_type, $entity, $name, $form_id, $widget, $options);
+//  }
 }
 
 /**
@@ -333,4 +375,32 @@ function field_ajax_process($form, &$form_state, $name) {
  * @param array          $form_state
  *   The form state, passed by reference.
  */
-function property_default_extract_form_values($entity_type, $entity, $name, &$items, $langcode = NULL, $form, &$form_state) {}
+function property_default_extract_form_values($entity_type, $entity, $name, &$items, $langcode = NULL, $form, &$form_state) {
+
+}
+
+/**
+ * Returns the possible options for a reference property in a form.
+ *
+ * @param string        $entity_type
+ *   The entity type.
+ * @param EntityToolbox $entity
+ *   The entity.
+ * @param string        $name
+ *   The property name.
+ *
+ * @return array
+ */
+function entity_reference_select_options($entity_type, $entity, $name) {
+  $property  = entity_type_properties($entity_type, $name);
+  $reference = $property['reference'];
+
+  $options = entity_load($reference);
+  $o       = array();
+  foreach ($options as $id => $option) {
+    $o[$id] = $option->name;
+  }
+  $o = array_filter($o, 'strlen');
+
+  return $o;
+}

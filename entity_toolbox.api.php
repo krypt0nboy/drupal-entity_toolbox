@@ -18,28 +18,6 @@
  */
 
 /**
- * Declares cache cid for cache_entity_toolbox.
- *
- * @return array
- *   An associative array where the keys are the cache name and whose values are :
- *   - expires : The duration of the cache in seconds.
- *   - clear : An array of cache cids to clear when clearing this one.
- *   - hooks : An array where the values hook names, which when invoked will clear the cid cache.
- */
-function hook_entity_toolbox_cache_info() {
-  $info               = array();
-  $info['cache_name'] = array(
-    'expires' => CACHE_PERMANENT,
-    'clear'   => array(),
-    'hooks'   => array(
-      'field_create_instance'
-    ),
-  );
-
-  return $info;
-}
-
-/**
  * Returns an array containing info to declare an entity_type.
  * Foreach fieldable entity type, should be declared a non fieldable entity_type.
  *
@@ -313,18 +291,6 @@ function hook_hook_register_info() {
 }
 
 /**
- * @return array
- */
-function hook_model_info() {
-  $info                        = array();
-  $info['entity_toolbox_info'] = array(
-    '' => '',
-  );
-
-  return $info;
-}
-
-/**
  * Declares a property type to be used by entity toolbox.
  *
  * @return array
@@ -350,23 +316,6 @@ function hook_toolbox_property_type_info() {
   $info['status']  = array(
     'base class' => 'StatusProperty',
   );
-
-  return $info;
-}
-
-/**
- * Declares widget for entity_toolbox property fields.
- * Entity toolbox widget help build the property element in an entity form.
- *
- * @return array
- *   An associative array where the keys are the widget names and the values are :
- *   - drupal type : The drupal form API matching "#type"
- *   - options :
- *   - multiple allowed :
- */
-function hook_toolbox_property_widget_info() {
-  $info              = array();
-  $info['textfield'] = array();
 
   return $info;
 }
@@ -465,46 +414,6 @@ function hook_class_type_info() {
 }
 
 /**
- * Declares the entity class name.
- * This hook is optional. Entity Toolbox will used default parameters if not declared.
- *
- * @return array
- *   An associative array where the keys are the entity types and the values are :
- *   - class : (optional) The class name. If not specified, a default class name will be used.
- *   - path : (optional) The path of the file containing the class.
- *   - file : (optional) The file containing the class.
- */
-function hook_entity_class_info() {
-  $info                = array();
-  $info['entity_type'] = array(
-    'class_type' => array(
-      'class' => 'EntityClass',
-      'path'  => 'path',
-      'file'  => 'filename.extension'
-    )
-  );
-  $info['city']        = array(
-    'entity'        => array(
-      'class' => 'City',
-      'path'  => '/src/classes/entity',
-      'file'  => 'City.inc'
-    ),
-    'controller'    => array(
-      'class' => 'City',
-      'path'  => '/src/classes/entity',
-      'file'  => 'City.inc'
-    ),
-    'ui controller' => array(
-      'class' => 'CityUIController',
-      'path'  => '/src/classes/controllers',
-      'file'  => 'CityUIController.inc'
-    )
-  );
-
-  return $info;
-}
-
-/**
  * Declares an entity form type.
  * Form types are related to existing action types.
  * (Eg : "edit" form type is related to actions "add" and "edit".
@@ -549,7 +458,6 @@ function hook_entity_form_type_info() {
  */
 function hook_update_entity_field_settings($entity_type, $bundle, $name) {
   //Clear the cache that needs to be cleared when this hook is invoked.
-  _toolbox_cache_clear('update_entity_field_settings');
 }
 
 /**
@@ -636,6 +544,27 @@ function hook_entity_toolbox_field_category_info() {
     'label'       => t('Technical'),
     'description' => t('A category for technical data, such as an ISIN code, etc...'),
     'group'       => 'catalog_attributes'
+  );
+
+  return $info;
+}
+
+/**
+ * Declares an entity setting.
+ *
+ * @return array
+ *   An associative array where the keys are the entity type and the values are :
+ */
+function hook_entity_setting_info() {
+  $info                = array();
+  $info['entity_type'] = array(
+    'id' => array(
+      'label'       => '',
+      'description' => '',
+      'type'        => '',
+      'default'     => '',
+      'group'       => 'settings'
+    )
   );
 
   return $info;

@@ -67,20 +67,6 @@ function entity_get_inherited_fields($entity_type, $bundle) {
 }
 
 /**
- * Returns a boolean indicating if the property is multi value or not.
- *
- * @param string $entity_type
- *   The entity type.
- * @param string $name
- *   The property name.
- *
- * @return bool
- */
-function is_property_multi_value($entity_type, $name) {
-  return entity_toolbox_controller($entity_type)->isPropertyMultiValue($name);
-}
-
-/**
  * Returns a group instance.
  *
  * @param string $group_name

@@ -7,96 +7,6 @@
  */
 
 /**
- * Returns info on an entity toolbox cache cid,
- * such as "expires".
- * Unlike any other entity toolbox cache element, this one is stored in "cache"
- * to avoid errors when retrieving and processing the cache info.
- *
- * @param null $cid
- *   The cid, or NULL to return info on all cid's.
- *
- * @return array
- *
- * @see hook_entity_toolbox_cache_info().
- */
-function entity_toolbox_cache_get_info($cid = NULL) {
-
-  /**
-   * We cache it since its used very often.
-   */
-  static $drupal_static_fast;
-  if (!isset($drupal_static_fast)) {
-    $drupal_static_fast[ENTITY_TOOLBOX__CACHE_INFO] = &drupal_static(__FUNCTION__);
-  }
-
-  $entity_toolbox_cache_info = &$drupal_static_fast[ENTITY_TOOLBOX__CACHE_INFO];
-  if (empty($entity_toolbox_cache_info)) {
-    if ($cache = cache_get(ENTITY_TOOLBOX__CACHE_INFO)) {
-      $entity_toolbox_cache_info = $cache->data;
-    }
-    else {
-      $data = module_invoke_all('entity_toolbox_cache_info');
-      drupal_alter('entity_toolbox_cache_info', $data);
-      $info = array();
-      foreach ($data as $key => $value) {
-        $value += array(
-          'cache' => TRUE
-        );
-        $info[$key] = $value;
-      }
-
-      $entity_toolbox_cache_info = $info;
-      cache_set(ENTITY_TOOLBOX__CACHE_INFO, $entity_toolbox_cache_info);
-    }
-  }
-
-  return isset($cid) ? $entity_toolbox_cache_info[$cid] : $entity_toolbox_cache_info;
-}
-
-/**
- * Returns the hooks on which entity toolbox cache IDs should be cleared.
- *
- * @param string $hook
- *   The hook name.
- *
- * @return string[]
- */
-function entity_toolbox_cache_hook_get_info($hook) {
-  $hooks = &drupal_static(__FUNCTION__, array());
-  if (!isset($hooks[$hook])) {
-    $cache_info = entity_toolbox_cache_get_info();
-    foreach ($cache_info as $cid => $info) {
-      if (!empty($info['hooks'][$hook])) {
-        $hooks[$hook][] = $cid;
-      }
-    }
-  }
-
-  return $hooks[$hook];
-}
-
-/**
- * Returns a list of hooks set to clear some cache cid when invoked.
- *
- * @return string[]
- */
-function entity_toolbox_cache_hooks_get_info() {
-  $hooks = &drupal_static(__FUNCTION__, array());
-  if (!isset($hooks)) {
-    $cache_info = entity_toolbox_cache_get_info();
-    $buffer     = array();
-    foreach ($cache_info as $cid => $info) {
-      foreach ($info['hooks'] as $hook) {
-        $buffer[] = $hook;
-      }
-    }
-    $hooks = array_unique($buffer);
-  }
-
-  return $hooks;
-}
-
-/**
  * Returns the available hooks builders info.
  *
  * @param null $hook
@@ -456,6 +366,25 @@ function entity_toolbox_get_info($entity_type = NULL, $update_N = NULL, $reset =
           $data[$t]    = $v;
         }
       }
+      $dependencies = array();
+      $filtered     = array_filter_by_value($data, TRUE, 'fieldable');
+      foreach ($filtered as $type => $info) {
+        if (!empty($info['dependencies'])) {
+          foreach ($info['dependencies'] as $dependency) {
+            $dependencies[$dependency][] = $type;
+          }
+        }
+      }
+      foreach ($dependencies as $dependency => $dependents) {
+        $weight                          = count($dependencies[$dependency]) * -1;
+        $filtered[$dependency]['weight'] = $weight;
+      }
+      uasort($filtered, 'drupal_sort_weight');
+      $data_ = array();
+      foreach ($filtered as $f => $i) {
+        $data_[$f]           = $i;
+        $data_[$f . '_type'] = $data[$f . '_type'];
+      }
       $processed = array();
       /**
        * @var string $type
@@ -463,7 +392,7 @@ function entity_toolbox_get_info($entity_type = NULL, $update_N = NULL, $reset =
        * @var array  $info
        *   The matching entity type raw info, as retrieved in module_invoke().
        */
-      foreach ($data as $type => $info) {
+      foreach ($data_ as $type => $info) {
         $args             = array(
           'entity_type' => $type,
           'raw_data'    => $info
@@ -638,50 +567,67 @@ function entity_toolbox_get_entity_class_info($entity_type = NULL, $class = NULL
 }
 
 /**
- * Returns a cached built schema.
- * Caching generated schemas is more reliable and avoids performance losses.
+ * Returns the entities settings.
  *
- * @param null|string $entity_type
- *   The entity type, or NULL to return every entity type schemas.
- * @param bool        $reset
- *   A boolean to clear the cached generated schemas, defaults to FALSE.
+ * @param null|string $type
+ * @param null|string $setting
+ * @param false|bool  $reset
  *
  * @return array
+ * @see hook_entity_setting_info().
  */
-function entity_toolbox_get_schema($entity_type = NULL, $reset = FALSE) {
-  $CACHEKEY = ENTITY_TOOLBOX__ENTITY_SCHEMA;
+function entity_settings_get_info($type = NULL, $setting = NULL, $reset = FALSE) {
+  $cid  = 'entity_settings_info';
+  $hook = 'entity_setting_info';
 
   /**
    * Cached since used very often.
    */
   static $drupal_static_fast;
   if (!isset($drupal_static_fast)) {
-    $drupal_static_fast['entity_schema'] = &drupal_static(__FUNCTION__);
+    $drupal_static_fast[$cid] = &drupal_static(__FUNCTION__);
   }
-  $entity_schema = &$drupal_static_fast['entity_schema'];
-
-  //If entity type is specified and that the system does not detect it, then reset the cache and generate the schema.
-  $reset = (isset($entity_type) && !entity_install_get_info($entity_type)) && !$reset;
-
-  if (empty($entity_schema) && !$reset) {
-    if ($cache = entity_toolbox_cache_get($CACHEKEY)) {
-      $entity_schema = $cache->data;
+  $entity_settings_info = &$drupal_static_fast[$cid];
+  if ($reset) {
+    $entity_settings_info = array();
+    entity_toolbox_cache_clear($cid);
+  }
+  if (empty($entity_settings_info)) {
+    if ($cache = entity_toolbox_cache_get($cid)) {
+      $entity_settings_info = $cache->data;
     }
     else {
+      $invoke = invoke_and_alter($hook);
       $buffer = array();
-      foreach (entity_toolbox_get_info() as $type => $info) {
-        foreach (entity_schemas_build($type) as $schemas) {
-          foreach ($schemas as $schema_name => $schema) {
-            $buffer[$type][$schema_name] = $schema;
-          }
+      foreach ($invoke as $entity_type => $settings) {
+        foreach ($settings as $sid => $s_info) {
+          $s_info += array(
+            'model'       => concat($sid, '%entity_type%'),
+            'label'       => machine_name2sentence($sid),
+            'description' => '',
+            'group'       => 'entity_settings',
+          );
+          $buffer[$entity_type][$sid] = $s_info;
         }
       }
-      $entity_schema = $buffer;
-      entity_toolbox_cache_set($CACHEKEY, $entity_schema);
+
+      $entity_settings_info = $buffer;
+      entity_toolbox_cache_set($cid, $entity_settings_info);
     }
   }
 
-  return isset($entity_type) ? $entity_schema[$entity_type] : $entity_schema;
+  if (isset($type)) {
+    return isset($setting) ? $entity_settings_info[$type][$setting] : $entity_settings_info[$type];
+  }
+  else {
+    return $entity_settings_info;
+  }
+}
+
+function entity_setting_extract_info($type, $setting) {
+  $setting_info = entity_settings_get_info($type, $setting);
+
+  return (object) $setting_info;
 }
 
 /**
@@ -898,10 +844,9 @@ function entity_toolbox_entity_parent_properties_get_info($entity_type = NULL) {
     else {
       $parents = array();
       foreach (entity_toolbox_get_info() as $type => $info) {
-        foreach ($info['properties'] as $prop_name => $property) {
-          if (($property['type'] == 'parent') || ($property['type'] == 'self_parent')) {
-            //The key is the property name and the value is the parent entity_type.
-            $parents[$type][$prop_name] = $property['reference'];
+        foreach ($info['properties'] as $prop_name => $prop_info) {
+          if (is_property_parent($type, $prop_name)) {
+            $parents[$type][$prop_name] = $prop_info['reference'];
           }
         }
       }
@@ -910,7 +855,7 @@ function entity_toolbox_entity_parent_properties_get_info($entity_type = NULL) {
     }
   }
 
-  return isset($entity_type) ? $parent_property_info[$entity_type] : $parent_property_info;
+  return isset($entity_type) ? !empty($parent_property_info[$entity_type]) ? $parent_property_info[$entity_type] : array() : $parent_property_info;
 }
 
 /**
@@ -940,9 +885,7 @@ function entity_toolbox_inheritable_property_get_info($entity_type = NULL) {
     else {
       $inheritable = array();
       foreach (entity_toolbox_get_info() as $type => $info) {
-        foreach ($info['children_inherit'] as $inherit) {
-          $inheritable[$type][] = $inherit;
-        }
+        $inheritable[$type] = $info['children_inherit'];
       }
       $inheritable_property_info = $inheritable;
       entity_toolbox_cache_set($CACHEKEY, $inheritable_property_info);
@@ -979,19 +922,16 @@ function entity_toolbox_inherited_property_get_info($entity_type = NULL) {
     else {
       $inherited = array();
       foreach (entity_toolbox_get_info() as $type => $info) {
-        $buffer = array();
-        /**
-         * @var string $prop_name
-         *   The property name.
-         * @var string $parent_type
-         *   The parent entity type.
-         */
-        foreach (entity_toolbox_entity_parent_properties_get_info($type) as $prop_name => $parent_type) {
-          //@todo mind parent type hierarchy position in the entity group.
-          //The inheritable properties for the current parent type.
-          foreach (entity_toolbox_inheritable_property_get_info($parent_type) as $inheritable) {
-            $buffer[$parent_type][] = $inheritable;
-          }
+        $buffer       = array();
+        $parent_types = entity_toolbox_entity_parent_properties_get_info($type);
+        if (!empty($parent_types[$type])) {
+          unset($parent_types[$type]);
+        }
+        foreach ($parent_types as $parent_type) {
+          $inheritable          = entity_toolbox_inheritable_property_get_info($parent_type);
+          $inherit_             = array_diff(array_keys($info['properties']), $inheritable);
+          $inherit__            = array_diff(array_keys($info['properties']), $inherit_);
+          $buffer[$parent_type] = $inherit__;
         }
         $inherited[$type] = $buffer;
       }
@@ -1217,23 +1157,28 @@ function entity_toolbox_entity_skip_load_get_info() {
 }
 
 /**
- * Indicates if an entity is installed.
+ * Returns an entity type operations path.
  *
- * @param string $entity_type
- *   The entity type.
+ * @param string      $entity_type
+ * @param null|string $op
  *
- * @return bool
+ * @return array
  */
-function entity_install_get_info($entity_type) {
-  $installed = &drupal_static(__FUNCTION__, array());
-  if (!in_array($entity_type, $installed)) {
-    $info = entity_get_info();
-    if (in_array($entity_type, array_keys($info))) {
-      if (db_table_exists($info[$entity_type]['base table'])) {
-        $installed[] = $entity_type;
+function entity_operation_get_path($entity_type, $op = NULL) {
+  $paths = &drupal_static(__FUNCTION__, array());
+  if (empty($paths)) {
+    foreach (entity_toolbox_get_info() as $type => $info) {
+      $buffer = array();
+      foreach ($info['operations'] as $operation => $op_info) {
+        $handler = entity_operations_get_entity_operation_handler($type, $operation);
+        if (method_exists($handler, 'basePath')) {
+          $path                      = $handler->basePath();
+          $buffer[$type][$operation] = $path;
+        }
       }
+      $paths += $buffer;
     }
   }
 
-  return in_array($entity_type, $installed);
+  return isset($op) ? $paths[$entity_type][$op] : $paths[$entity_type];
 }
