@@ -11,12 +11,15 @@ trait EntityToolboxDependentBuilderTraits {
    * @return array
    */
   public function extractToolboxInfoTemplateVars() {
-    $vars = $this->extractTemplateVars($this->toolboxInfo, '', 'toolbox_info_');
-    $vars += array('toolbox_info_entity_type' => $this->entityType);
-    $vars += array(
-      'toolbox_info_module_path' =>
-        drupal_get_path('module', $this->toolboxInfo['module'])
-    );
+    $vars = array();
+    if(!empty($this->toolboxInfo)){
+      $vars += $this->extractTemplateVars($this->toolboxInfo, '', 'toolbox_info_');
+      $vars += array('toolbox_info_entity_type' => $this->entityType);
+      $vars += array(
+        'toolbox_info_module_path' =>
+          drupal_get_path('module', $this->toolboxInfo['module'])
+      );
+    }
 
     return $vars;
   }

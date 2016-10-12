@@ -14,7 +14,8 @@ trait ReferenceDependentBuilderTraits {
     if (!empty($this->referenceInfo)) {
       $flattened = $this->extractTemplateVars($this->referenceInfo, '', 'reference_info_');
       $flattened += array(
-        'reference_info_entity_type' => $this->reference
+        'reference_info_entity_type' => $this->reference,
+        'reference_info_machine_name_plural' => single2plural($this->reference)
       );
 
     }

@@ -6,6 +6,7 @@
 trait EntityToolboxCommonTraits {
   /**
    * @var array $constructArgs
+   *   The construct arguments.
    */
   protected $constructArgs = array();
 
@@ -18,8 +19,8 @@ trait EntityToolboxCommonTraits {
    * @return mixed
    */
   public function __get($name) {
-    $cKey    = lowercase2camelcase($name);
-    $method  = 'get' . $cKey;
+    $cKey   = str2camelcase($name);
+    $method = 'get' . $cKey;
     if (method_exists($this, $method)) {
       return $this->$method();
     }
@@ -35,7 +36,7 @@ trait EntityToolboxCommonTraits {
    *   The value to set.
    */
   public function __set($name, $value) {
-    $cKey   = lowercase2camelcase($name);
+    $cKey   = str2camelcase($name);
     $method = 'set' . $cKey;
     if (method_exists($this, $method)) {
       $this->preSet($name);
@@ -65,16 +66,24 @@ trait EntityToolboxCommonTraits {
    * @return bool
    */
   public function __isset($name) {
-    $cKey = lcfirst(lowercase2camelcase($name));
+    $cKey = str2camelcase($name, FALSE);
 
     return isset($this->{$cKey}) && !empty($this->{$cKey});
   }
 
   /**
    * @param $name
+   * @param $arguments
+   */
+  public function __call($name, $arguments) {
+
+  }
+
+  /**
+   * @param $name
    */
   protected function preSet($name) {
-    $cKey   = lowercase2camelcase($name);
+    $cKey   = str2camelcase($name);
     $method = "preSet$cKey";
     if (method_exists($this, $method)) {
       $this->$method();
