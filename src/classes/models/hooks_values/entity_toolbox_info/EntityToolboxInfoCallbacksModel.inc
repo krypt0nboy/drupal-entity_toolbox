@@ -10,30 +10,35 @@ class EntityToolboxInfoCallbacksModel extends EntityToolboxInfoRecursiveModel {
       array(
         'self_key'  => 'callbacks',
         'structure' => array(
-          'create' => array(
+          'create'    => array(
             'type'    => 'string',
             'default' => '%toolbox_info_entity_type%_create',
           ),
-          'save'   => array(
+          'save'      => array(
             'type'    => 'string',
             'default' => '%toolbox_info_entity_type%_save',
           ),
-          'delete' => array(
+          'delete'    => array(
             'type'    => 'string',
             'default' => '%toolbox_info_entity_type%_delete',
           ),
-          'access' => array(
+          'access'    => array(
             'type'    => 'string',
             'default' => '%toolbox_info_entity_type%_access',
           ),
-          'label'  => array(
+          'label'     => array(
             'type'    => 'string',
             'default' => '%toolbox_info_entity_type%_label',
           ),
-          'uri'    => array(
+          'uri'       => array(
             'type'    => 'string',
             'default' => '%toolbox_info_entity_type%_uri',
           ),
+          'get_types' => array(
+            'type'     => 'string',
+            'default'  => '%toolbox_info_entity_type%_get_types',
+            'unset if' => '!is_callable:c:'
+          )
         )
       ),
       $args

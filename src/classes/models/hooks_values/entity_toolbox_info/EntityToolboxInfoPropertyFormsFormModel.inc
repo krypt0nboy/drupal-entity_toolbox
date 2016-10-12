@@ -19,9 +19,7 @@ class EntityToolboxInfoPropertyFormsFormModel extends EntityToolboxInfoRecursive
           ),
           'required' => array(
             'type'    => 'boolean',
-            'method'  => '',
-            'default' => '',
-            'model'   => '',
+            'default' => '%property_default_forms_edit_required%',
           ),
           'rows'     => array(
             'type'    => 'integer',

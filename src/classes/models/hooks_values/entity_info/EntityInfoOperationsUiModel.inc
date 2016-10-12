@@ -9,10 +9,10 @@ class EntityInfoOperationsUiModel extends EntityInfoRecursiveModel {
     $args = $this->mergeConstructArgs(
       array(
         'structure' => array(
-          'controller class' => array(
-            'type'    => 'string',
-            'default' => 'EntityOperationsDefaultUIController',
-          ),
+//          'controller class' => array(
+//            'type'    => 'string',
+//            'default' => 'EntityOperationsDefaultUIController',
+//          ),
           'path'             => array(
             'type'    => 'string',
             'default' => '%toolbox_info_entity_type%',

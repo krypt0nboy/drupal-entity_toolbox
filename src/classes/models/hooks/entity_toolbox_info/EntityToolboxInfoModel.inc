@@ -80,7 +80,7 @@ class EntityToolboxInfoModel extends HookModel {
             'default' => '',
             'model'   => ''
           ),
-          'operations'       => array(
+          'operations' => array(
             'type'   => 'array',
             'method' => 'buildOperations',
             'model'  => 'entity_toolbox_operations'

@@ -34,11 +34,13 @@ class EntityPropertyInfoPropertyModel extends EntityPropertyInfoRecursiveModel {
           'getter callback'     => array(
             'type'     => 'string',
             'default'  => '%property_callbacks_getter%',
+            'method'   => 'buildGetterCallback',
             'unset if' => 'is_null:c:'
           ),
           'setter callback'     => array(
             'type'     => 'string',
             'default'  => '%property_callbacks_setter%',
+            'method'   => 'buildSetterCallback',
             'unset if' => 'is_null:c:'
           ),
           'validation callback' => array(
@@ -112,8 +114,8 @@ class EntityPropertyInfoPropertyModel extends EntityPropertyInfoRecursiveModel {
             'default' => '%property_has_translations%',
           ),
           'entity token'        => array(
-            'type'   => 'string',
-            'method' => 'buildToken',
+            'type'     => 'string',
+            'method'   => 'buildToken',
             'unset if' => 'is_null:c:'
           ),
         ),

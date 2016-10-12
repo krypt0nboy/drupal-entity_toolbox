@@ -29,8 +29,9 @@ class DrupalSchemaFieldModel extends SchemaRecursiveModel {
             'unset if' => 0
           ),
           'not null'    => array(
-            'type'    => 'boolean',
-            'default' => '%property_schemas_fields_not_null%',
+            'type'     => 'boolean',
+            'default'  => '%property_schemas_fields_not_null%',
+            'unset if' => 'false'
           ),
           'default'     => array(
             'type'     => 'string|integer',

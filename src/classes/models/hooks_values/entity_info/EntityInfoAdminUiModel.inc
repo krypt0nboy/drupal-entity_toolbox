@@ -14,8 +14,8 @@ class EntityInfoAdminUiModel extends EntityInfoRecursiveModel {
             'default' => '%toolbox_info_root_path%',
           ),
           'file'             => array(
-            'type'   => 'string',
-            'default' => '%toolbox_info_classes_ui_controller_file%',
+            'type'    => 'string',
+            'default' => 'src/classes/controllers/%toolbox_info_classes_ui_controller_file%',
           ),
           'controller class' => array(
             'type'    => 'string',

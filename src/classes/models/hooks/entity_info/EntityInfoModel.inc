@@ -42,10 +42,10 @@ class EntityInfoModel extends HookModel {
             'type'   => 'array',
             'method' => 'buildEntityKeys',
           ),
-//          'operations ui'     => array(
-//            'type'   => 'array',
-//            'method' => 'buildOperationsUi',
-//          ),
+          'operations ui' => array(
+            'type'   => 'array',
+            'method' => 'buildOperationsUi',
+          ),
           'label callback'    => array(
             'type'    => 'string',
             'default' => '%toolbox_info_callbacks_label%',
@@ -66,11 +66,11 @@ class EntityInfoModel extends HookModel {
             'type'    => 'string',
             'default' => '%toolbox_info_module%',
           ),
-//          'admin ui'          => array(
-//            'type'   => 'array',
-//            'method' => 'buildAdminUi',
-//            'model'  => 'entity_info_admin_ui'
-//          ),
+          'admin ui' => array(
+            'type'   => 'array',
+            'method' => 'buildAdminUi',
+            'model'  => 'entity_info_admin_ui'
+          ),
         )
       ),
       $args

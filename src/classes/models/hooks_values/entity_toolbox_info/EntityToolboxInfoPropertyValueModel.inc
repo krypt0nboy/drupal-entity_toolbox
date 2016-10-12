@@ -42,6 +42,11 @@ class EntityToolboxInfoPropertyValueModel extends EntityToolboxInfoRecursiveMode
             'type'   => 'array',
             'method' => 'buildForbid',
           ),
+          'source'     => array(
+            'type'     => 'string',
+            'method'   => 'buildSource',
+            'unset if' => 'is_null:c:'
+          ),
         )
       ),
       $args

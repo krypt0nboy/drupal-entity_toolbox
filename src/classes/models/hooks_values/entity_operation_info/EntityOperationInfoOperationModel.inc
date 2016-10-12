@@ -9,8 +9,8 @@ class EntityOperationInfoOperationModel extends EntityOperationInfoRecursiveMode
     $args = $this->mergeConstructArgs(array(
       'structure' => array(
         'handler'   => array(
-          'type'    => 'string',
-          'default' => 'EntityToolboxOperations%toolbox_info_operations_labels_label%',
+          'type'   => 'string',
+          'method' => 'buildHandler',
         ),
         'provision' => array(
           'type'   => 'array',
