@@ -22,7 +22,7 @@ class EntityInfoBuilderFieldable extends EntityInfoBuilder {
    */
   protected function buildEntityKeys() {
     $keys = $this->toolboxInfo['keys'];
-    unset($keys['bundle']);
+//    unset($keys['bundle']);
 
     return $keys;
   }
@@ -31,6 +31,6 @@ class EntityInfoBuilderFieldable extends EntityInfoBuilder {
    * @return array
    */
   protected function buildBundleKeys() {
-    return array('bundle' => $this->toolboxInfo['keys']['type']);
+    return array('bundle' => $this->toolboxInfo['keys']['bundle']);
   }
 }

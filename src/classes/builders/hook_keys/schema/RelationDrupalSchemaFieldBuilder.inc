@@ -4,5 +4,4 @@
  * Class RelationDrupalSchemaFieldBuilder
  */
 class RelationDrupalSchemaFieldBuilder extends DrupalSchemaFieldBuilder {
-
 }

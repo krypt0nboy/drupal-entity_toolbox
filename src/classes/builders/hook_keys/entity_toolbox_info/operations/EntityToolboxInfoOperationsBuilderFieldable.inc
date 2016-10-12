@@ -8,18 +8,9 @@ class EntityToolboxInfoOperationsBuilderFieldable extends EntityToolboxInfoOpera
   public function __construct(array $args = array()) {
     $args = $this->mergeConstructArgs(array(
       'required_operations' => array(
-        'publish'   => array(
-          'handler'   => 'EntityToolboxOperationsPublish',
-          'provision' => array(
-            'menu' => TRUE
-          )
-        ),
-        'unpublish' => array(
-          'handler'   => 'EntityToolboxOperationsUnpublish',
-          'provision' => array(
-            'menu' => TRUE
-          )
-        ),
+        'add'  => array('handler' => 'EntityToolboxOperationsAddFieldable'),
+        'edit' => array('handler' => 'EntityToolboxOperationsEditFieldable'),
+        'view' => array('handler' => 'EntityToolboxOperationsViewFieldable'),
       )
     ), $args);
     parent::__construct($args);

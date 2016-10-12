@@ -45,9 +45,10 @@ class EntityPropertyInfoReferenceNumericPropertyBuilder extends EntityPropertyIn
    */
   protected function autoSetReferencePropertyBuilder() {
     $parentBuilder = $this->getParentBuilder();
-    if ($parentBuilder->hasKeyBuilder($this->referencePropertyName)) {
+    $hlp           = $parentBuilder->hlpr();
+    if ($hlp->keyHasBuilder($this->referencePropertyName)) {
       /** @var EntityPropertyInfoReferencePropertyBuilder $builder */
-      $builder = $parentBuilder->getKeyBuilder($this->referencePropertyName);
+      $builder = $hlp->keyGetBuilder($this->referencePropertyName);
       $this->__set('reference_property_builder', $builder);
       if (!$builder->__isset('numeric_property_builder')) {
         $builder->setNumericPropertyBuilder($this);
@@ -58,8 +59,10 @@ class EntityPropertyInfoReferenceNumericPropertyBuilder extends EntityPropertyIn
   /** {{@inheritdoc}} */
   protected function initTemplateVars(array $vars = array()) {
     $vars += $this->extractReferenceInfoTemplateVars();
-    $vars += $this->getReferencePropertyBuilder()
-                  ->extractToolboxInfoPropertyTemplateVars();
+    if(isset($this->referencePropertyBuilder)){
+      $vars += $this->getReferencePropertyBuilder()
+                    ->extractToolboxInfoPropertyTemplateVars();
+    }
 
     return EntityDependentHookKeyBuilder::initTemplateVars($vars);
   }

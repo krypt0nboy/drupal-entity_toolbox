@@ -103,38 +103,19 @@ class EntityToolboxInfoBuilder extends EntityDependentHookBuilder {
 
   /** {{@inheritdoc}} */
   protected function setKeyBuild($key, $build) {
-    return parent::setKeyBuild($key, $build);
-  }
-
-  /**
-   * Builds the value for a given key.
-   *
-   * @param string $key
-   *   The key to build.
-   *
-   * @return mixed
-   */
-  protected function buildKey($key) {
-    if (!empty($this->structure[$key]['method'])) {
-      $method = $this->structure[$key]['method'];
-      $build  = $this->$method();
-      if (($this->getStructure($key)['type'] == 'array')) {
+    $hlp = $this->hlpr();
+    switch ($hlp->keyGetType($key)) {
+      case 'array':
         if (!empty($this->rawData[$key])) {
-          return $this->setKeyBuild($key, array_replace_recursive($build, $this->rawData[$key]));
+          $build = array_replace_recursive($build, $this->rawData[$key]);
         }
-        else {
-          return $this->setKeyBuild($key, $build);
-        }
-      }
-      else {
-        return $this->setKeyBuild($key, $build);
-      }
+        break;
+      default:
+        $build = !empty($this->rawData[$key]) ? $this->rawData[$key] : $build;
+        break;
     }
-    else {
-      if (isset($this->structure[$key]['default'])) {
-        return $this->buildKeyDefault($key);
-      }
-    }
+
+    return parent::setKeyBuild($key, $build);
   }
 
   /** {{@inheritdoc}} */
@@ -162,9 +143,7 @@ class EntityToolboxInfoBuilder extends EntityDependentHookBuilder {
    * @return array
    */
   protected function buildLabels() {
-    $build = $this->getKeyBuilder('labels')->build();
-
-    return $build;
+    return $this->getKeyBuilder('labels')->build();
   }
 
   /**

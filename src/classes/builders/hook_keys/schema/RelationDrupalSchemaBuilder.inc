@@ -49,6 +49,14 @@ class RelationDrupalSchemaBuilder extends DrupalSchemaBuilder {
     return $this->processValueTemplate('A relation table between %toolbox_info_entity_type% and %reference_info_entity_type%.');
   }
 
+  protected function buildUniqueKeys() {
+    return array();
+  }
+
+  protected function buildPrimaryKey() {
+    return array();
+  }
+
   /** {{@inheritdoc}} */
   protected function keyBuilderGetInstance($keyBuilderClass, array $args = array()) {
     $args = $this->mergeConstructArgs(array(

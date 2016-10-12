@@ -66,6 +66,7 @@ class EntityToolboxInfoReferencePropertyBuilder extends EntityToolboxInfoPropert
   protected function buildSelfNumericProperty() {
     $idKey = $this->referenceInfo['entity keys']['id'];
     $idKey = $this->isMultiple ? $idKey . 's' : $idKey;
+    $idKey = $this->entityType == $this->reference ? concat('parent', $idKey) : $idKey;
 
     return $idKey;
   }

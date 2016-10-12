@@ -11,14 +11,17 @@ class KeyBuilder extends BuilderBase {
   protected $parentBuilder;
   /**
    * @var string $selfKey
+   *   This keyBuilder key within its parent's structure.
    */
   protected $selfKey;
   /**
    * @var string $parentKey
+   *   The keyBuilder parent key.
    */
   protected $parentKey;
   /**
    * @var boolean $requiresRebuild
+   *   Whether this builder requires to be rebuilt before it's delivered.
    */
   protected $requiresRebuild;
 
@@ -119,7 +122,19 @@ class KeyBuilder extends BuilderBase {
     }
   }
 
+  /**
+   * Notifies that this key requires to be rebuilt before delivered.
+   */
+  public function requireRebuild() {
+    $this->setRequiresRebuild(TRUE);
+  }
+
   /** {{@inheritdoc}} */
   protected function postBuild() {
+  }
+
+  /** {{@inheritdoc}} */
+  protected function postReBuild() {
+    $this->setRequiresRebuild(FALSE);
   }
 }

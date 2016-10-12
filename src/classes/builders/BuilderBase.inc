@@ -1,6 +1,7 @@
 <?php
 
 require_once ENTITY_TOOLBOX_PATH . '/src/classes/helpers/HelperBase.inc';
+require_once ENTITY_TOOLBOX_PATH . '/src/classes/helpers/builders/BuildersHelperBase.inc';
 
 /**
  * Class BuilderBase
@@ -9,24 +10,27 @@ require_once ENTITY_TOOLBOX_PATH . '/src/classes/helpers/HelperBase.inc';
  */
 class BuilderBase {
 
-  use EntityToolboxCommonTraits, TemplatingTraits;
+  use EntityToolboxCommonTraits, TemplatingTraits {
+  }
+
   /**
    * @var string $modelClass
+   *   The builder's model class.
    */
   protected $modelClass;
   /**
    * @var ModelBase $model
-   *   The data model.
+   *   The data model object.
    */
   protected $model;
   /**
    * @var array $structure
-   *   The structure of the array to build.
+   *   The structure of the build.
    */
   protected $structure = array();
   /**
    * @var KeyBuilder[] $keyBuilders
-   *   The structure keys builders.
+   *   The keys builder.
    */
   protected $keyBuilders = array();
   /**
@@ -46,6 +50,11 @@ class BuilderBase {
    * @var EntityToolboxHelperBase[] $helpers
    */
   protected $helpers = array();
+  /**
+   * @var BuildersHelperBase $helper
+   *   The builder's helper.
+   */
+  protected $helper;
   /**
    * @var integer $phase
    *   The building phase :
@@ -136,6 +145,10 @@ class BuilderBase {
    */
   protected $delivered;
   /**
+   * @var array $keysRequireRebuild
+   */
+  protected $keysRequireRebuild = array();
+  /**
    * @var array $build
    */
   protected $build = array();
@@ -162,6 +175,7 @@ class BuilderBase {
    *   The args to provide for the builder.
    */
   protected function setUp($args = array()) {
+    $this->setPhase(self::PHZ__INIT);
     $this->constructSet($args);
     $this->autoSet();
     $this->prepare();
@@ -182,6 +196,7 @@ class BuilderBase {
    * Auto sets properties.
    */
   protected function autoSet() {
+    $this->generateHelpers();
   }
 
   /*** INIT END ***/
@@ -239,28 +254,55 @@ class BuilderBase {
    * @return array
    */
   public function getStructure($key = NULL) {
-    return isset($key) ? $this->structure[$key] : $this->structure;
+    return isset($key) ? $this->getKeyParams($key) : $this->structure;
+  }
+
+  /**
+   * Returns a key structure parameters.
+   *
+   * @param string $key
+   *   The key's name.
+   *
+   * @return string
+   */
+  public function getKeyParams($key) {
+    $hlp = $this->hlpr();
+
+    return $hlp->keyGet($key);
   }
 
   /**
    * @param array $structure
    */
   protected function setStructure(array $structure = array()) {
-    foreach ($structure as $key => $params) {
-      $this->structure[$key] = $params;
-    }
+    $this->structure = $structure;
   }
 
   /**
    * Returns the build.
    *
-   * @param string $key
+   * @param null|string $key
    *   A key name.
    *
    * @return array
    */
-  public function getBuild($key) {
-    return isset($key) ? $this->build[$key] : $this->build;
+  public function getBuild($key = NULL) {
+    return isset($key) ? $this->getKeyBuild($key) : $this->build;
+  }
+
+  /**
+   * Returns the build for a given key.
+   *
+   * @param string $key
+   *   The key name.
+   *
+   * @return mixed
+   */
+  public function getKeyBuild($key) {
+    $hlp = $this->hlpr();
+    if ($hlp->keyHasBuild($key)) {
+      return $hlp->keyGetBuild($key);
+    }
   }
 
   /**
@@ -274,16 +316,60 @@ class BuilderBase {
   }
 
   /**
-   * @param $key
-   * @param $build
+   * Sets a key build value.
    *
-   * @return array
+   * @param string $key
+   *   The key name.
+   * @param mixed  $build
+   *   The build to set.
+   *
+   * @return mixed
    */
   protected function setKeyBuild($key, $build) {
-    $this->build[$key] = $this->validateKeyBuild($key, $build);
-    $this->postBuildKey($key);
+    $ved               = $this->validateKeyBuild($key, $build);
+    $this->build[$key] = $ved;
+    $this->postKeyBuild($key);
 
     return $this->build[$key];
+  }
+
+  /**
+   * Returns the key current phase.
+   *
+   * @param string $key
+   *   The key name.
+   *
+   * @return int
+   */
+  public function keyGetPhase($key) {
+    $hlp = $this->hlpr();
+    if ($hlp->keyHasBuilder($key)) {
+      $builder = $hlp->keyGetBuilder($key);
+
+      return $builder->getPhase();
+    }
+    else {
+      return $this->structure[$key]['phase'];
+    }
+  }
+
+  /**
+   * Sets the build phase for a key.
+   *
+   * @param string $key
+   *   The key's name.
+   * @param int    $phase
+   *   The phase to set.
+   */
+  public function keySetPhase($key, $phase) {
+    $hlp = $this->hlpr();
+    if ($hlp->keyHasBuilder($key)) {
+      $builder = $hlp->keyGetBuilder($key);
+      $builder->setPhase($phase);
+    }
+    else {
+      $this->structure[$key]['phase'] = $phase;
+    }
   }
 
   /**
@@ -308,11 +394,18 @@ class BuilderBase {
   }
 
   /**
-   * @param $key
-   * @return \BuilderBase
+   * Returns a key builder.
+   *
+   * @param string $key
+   *   The key's name.
+   *
+   * @return \KeyBuilder
    */
   public function getKeyBuilder($key) {
-    return $this->keyBuilders[$key];
+    $hlp = $this->hlpr();
+    if (($kBuilder = $hlp->keyGetBuilder($key)) !== NULL) {
+      return $kBuilder;
+    }
   }
 
   /**
@@ -322,14 +415,6 @@ class BuilderBase {
     foreach ($keyBuilders as $key => $keyBuilder) {
       $this->setKeyBuilder($key, $keyBuilder);
     }
-  }
-
-  /**
-   * @param $key
-   * @return bool
-   */
-  public function hasKeyBuilder($key) {
-    return !empty($this->keyBuilders[$key]);
   }
 
   /**
@@ -373,6 +458,29 @@ class BuilderBase {
   }
 
   /**
+   * @return BuildersHelperBase
+   */
+  public function getHelper() {
+    return $this->helper;
+  }
+
+  /**
+   * getHelper alias.
+   *
+   * @return \BuildersHelperBase
+   */
+  public function hlpr() {
+    return $this->helper;
+  }
+
+  /**
+   * @param BuildersHelperBase $helper
+   */
+  public function setHelper($helper) {
+    $this->helper = $helper;
+  }
+
+  /**
    * Returns the builds current phase.
    *
    * @return int
@@ -409,14 +517,6 @@ class BuilderBase {
    * @return boolean
    */
   public function isReady2GenerateKeyBuilders() {
-    if (is_bool($this->ready2GenerateKeyBuilders)) {
-      return $this->ready2GenerateKeyBuilders;
-    }
-    else {
-      $eval = $this->evalReady2GenerateKeyBuilders();
-      $this->setReady2GenerateKeyBuilders($eval);
-    }
-
     return $this->ready2GenerateKeyBuilders;
   }
 
@@ -567,6 +667,34 @@ class BuilderBase {
     $this->upStructureBeforeBuild = $upStructureBeforeBuild;
   }
 
+  /**
+   * @return array
+   */
+  public function getKeysRequireRebuild() {
+    return $this->keysRequireRebuild;
+  }
+
+  /**
+   * @param array $keysRequireRebuild
+   */
+  public function setKeysRequireRebuild($keysRequireRebuild) {
+    $this->keysRequireRebuild = $keysRequireRebuild;
+  }
+
+  /**
+   * @param $key
+   */
+  public function addKeyRequiresRebuild($key) {
+    $this->keysRequireRebuild[] = $key;
+  }
+
+  /**
+   * @param $key
+   */
+  public function remKeyRequiresRebuild($key) {
+    unset($this->keysRequireRebuild[$key]);
+  }
+
   /*** SETTERS AND GETTERS END ***/
 
   /*** EVAL METHODS ***/
@@ -580,45 +708,6 @@ class BuilderBase {
     $eval = $this->__isset('upStructureBeforeBuild') ? $this->getUpStructureBeforeBuild() : FALSE;
 
     return $eval;
-  }
-
-  /**
-   * Evaluates if key builders can be generated.
-   *
-   * @param bool $autoSet
-   *   A boolean indicating if property ready2GenerateKeyBuilders should be set.
-   *
-   * @return boolean
-   */
-  protected function evalReady2GenerateKeyBuilders($autoSet = FALSE) {
-    $eval     = array();
-    $required = array(
-      'keyBuildersClasses',
-      'keyBuildersArgs'
-    );
-    foreach ($required as $property) {
-      $eval[] = $this->__isset($property);
-    }
-
-    if (in_array(FALSE, $eval, TRUE)) {
-      if ($autoSet) {
-        $this->setReady2GenerateKeyBuilders(FALSE);
-      }
-
-      return FALSE;
-    }
-    elseif (in_array(TRUE, $eval, TRUE)) {
-      if ($autoSet) {
-        $this->setReady2GenerateKeyBuilders(TRUE);
-      }
-
-      return TRUE;
-    }
-    if ($autoSet) {
-      $this->setReady2GenerateKeyBuilders(FALSE);
-    }
-
-    return FALSE;
   }
 
   /*** EVAL METHODS ENDS ***/
@@ -682,7 +771,6 @@ class BuilderBase {
     $this->setPhase(self::PHZ__PREP);
     $this->initTemplateVars();
     $this->generateModel();
-    $this->generateHelpers();
     $this->prepareStructure();
     $this->generateComponents();
     $this->alterStructure();
@@ -692,9 +780,29 @@ class BuilderBase {
    * Prepares the structure.
    */
   protected function prepareStructure() {
-    $method    = isset($this->model) ? 'genStructureFromModel' : 'genDynamicStructure';
+    $method    = $this->__isset('model') ? 'genStructureFromModel' : 'genDynamicStructure';
     $structure = $this->$method();
+    $structure = $this->vedStructure($structure);
     $this->__set('structure', $structure);
+  }
+
+  /**
+   * Validates the structure before it's set.
+   *
+   * @param array $structure
+   *   The prepared structure.
+   *
+   * @return array
+   */
+  protected function vedStructure($structure = array()) {
+    foreach ($structure as $key => $params) {
+      $structure[$key] += array(
+        'rebuild' => FALSE,
+        'phase'   => self::PHZ__INIT,
+      );
+    }
+
+    return $structure;
   }
 
   /**
@@ -710,6 +818,7 @@ class BuilderBase {
 
   /**
    * Generates and set a dynamic structure.
+   * Child class that implements this method should return an array.
    *
    * @return array
    */
@@ -755,7 +864,7 @@ class BuilderBase {
   }
 
   /**
-   * Instanciates the required object properties.
+   * Instanciates the required components.
    */
   protected function generateComponents() {
     $this->generateKeyBuilders();
@@ -765,7 +874,14 @@ class BuilderBase {
    * Generate and adds required helpers.
    */
   protected function generateHelpers() {
+    $this->setHelper($this->mainHelperGetInstance());
+  }
 
+  /**
+   * @return \BuildersHelperBase
+   */
+  protected function mainHelperGetInstance() {
+    return $this->helperGetInstance('BuildersHelperBase');
   }
 
   /**
@@ -794,9 +910,42 @@ class BuilderBase {
    * Called before build.
    */
   protected function preBuild() {
-    if ($this->requiresStructureUp()) {
+    $hlp = $this->hlpr();
+    if ($hlp->ifBuilderRequiresStructureUpdate()) {
       $this->upStructure();
     }
+  }
+
+  /**
+   * Notifies that a key requires to be rebuilt before delivered.
+   *
+   * @param string $key
+   *   The key to be rebuilt.
+   */
+  protected function keyRequiresRebuild($key) {
+    $hlp = $this->hlpr();
+    if ($hlp->builderHasKey($key)) {
+      if ($hlp->keyHasBuilder($key)) {
+        /** @var KeyBuilder $keyBuilder */
+        $keyBuilder = $this->getKeyBuilder($key);
+        $keyBuilder->requireRebuild();
+      }
+      else {
+        $this->structure[$key]['rebuild'] = TRUE;
+      }
+    }
+  }
+
+  /**
+   * Evaluates if a key requires to be rebuilt.
+   *
+   * @param string $key
+   *   The key's name.
+   *
+   * @return bool
+   */
+  public function ifKeyRequiresRebuild($key) {
+    return $this->hlpr()->ifKeyRequiresRebuild($key);
   }
 
   /*** PREPARE END ***/
@@ -807,7 +956,8 @@ class BuilderBase {
    * @return mixed
    */
   public function build() {
-    $this->setPhase(self::PHZ__BUILD);
+    $phase = $this->getPhase() == self::PHZ__BUILD ? self::PHZ__REBUILD : self::PHZ__BUILD;
+    $this->setPhase($phase);
     $this->preBuild();
     $this->buildDefault();
     $this->validateBuild();
@@ -817,9 +967,16 @@ class BuilderBase {
   }
 
   /**
-   * Default build function.
+   * Return the rebuilt data.
    *
-   * @return array
+   * @return mixed
+   */
+  public function rebuild() {
+    return $this->build();
+  }
+
+  /**
+   * Default build function.
    */
   protected function buildDefault() {
     foreach (array_keys($this->structure) as $key) {
@@ -836,10 +993,12 @@ class BuilderBase {
    * @return mixed
    */
   protected function buildKey($key) {
-    if (!empty($this->structure[$key]['method'])) {
-      $method = $this->structure[$key]['method'];
-      $build  = $this->$method();
-      if (is_null($build) && isset($this->structure[$key]['default'])) {
+    $hlp            = $this->hlpr();
+    $hasBuildMethod = $hlp->keyHasBuildMethod($key);
+    $hasDefaultVal  = $hlp->keyHasDefaultValue($key);
+    if ($hasBuildMethod) {
+      $build = $this->keyBuildMethod($key);
+      if (is_null($build) && $hasDefaultVal) {
         return $this->buildKeyDefault($key);
       }
       else {
@@ -847,10 +1006,108 @@ class BuilderBase {
       }
     }
     else {
-      if (isset($this->structure[$key]['default'])) {
+      if (isset($hasDefaultVal)) {
         return $this->buildKeyDefault($key);
       }
     }
+  }
+
+  /**
+   * Calls the key build method.
+   *
+   * @param string $key
+   *   The key name.
+   * @param bool   $call
+   *   Whether to call the method or not.
+   *
+   * @return mixed
+   */
+  protected function keyBuildMethod($key, $call = TRUE) {
+    $hlp    = $this->hlpr();
+    $method = $hlp->keyGetBuildMethod($key);
+
+    return $call ? $this->$method() : $method;
+  }
+
+  /**
+   * Calls the key validation method.
+   *
+   * @param string $key
+   *   The key name.
+   * @param mixed  $toVed
+   *   The build to validate.
+   * @param bool   $call
+   *   Whether to call the method or not.
+   *
+   * @return mixed
+   */
+  protected function keyVedMethod($key, $toVed, $call = TRUE) {
+    $hlp = $this->hlpr();
+    if ($hlp->keyHasVedMethod($key)) {
+      $method = $hlp->keyGetVedMethod($key);
+
+      return $call ? $this->$method($toVed) : $method;
+    }
+    else {
+      return $toVed;
+    }
+  }
+
+  /**
+   * Calls custom post key build method.
+   *
+   * @param string $key
+   *   The key name.
+   * @param bool   $call
+   *   Whether to call the method or not.
+   *
+   * @return void|mixed
+   */
+  protected function keyPostBuildMethod($key, $call = TRUE) {
+    $hlp = $this->hlpr();
+    if ($hlp->keyHasPostBuildMethod($key)) {
+      $method = $hlp->keyGetPostBuildMethod($key);
+      if ($call) {
+        $this->$method();
+      }
+      else {
+        return $method;
+      }
+    }
+  }
+
+  /**
+   * Calls custom key static deliver fail fix method.
+   *
+   * @param string $key
+   *   The key name.
+   * @param bool   $call
+   *   Whether to call the method or not.
+   *
+   * @return void|mixed
+   */
+  protected function keyStaticDeliverFailFixMethod($key, $call = TRUE) {
+    $hlp = $this->hlpr();
+    if (($method = $hlp->keyGetStaticDeliverFailFixMethod($key)) !== NULL) {
+      if ($call) {
+        $this->$method();
+      }
+      else {
+        return $method;
+      }
+    }
+  }
+
+  /**
+   * Rebuilds a key value.
+   *
+   * @param string $key
+   *   The key name.
+   *
+   * @return mixed
+   */
+  protected function rebuildKey($key) {
+    $this->buildKey($key);
   }
 
   /**
@@ -862,7 +1119,8 @@ class BuilderBase {
    * @return mixed
    */
   protected function buildKeyDefault($key) {
-    $default = $this->structure[$key]['default'];
+    $hlp     = $this->hlpr();
+    $default = $hlp->keyGetDefault($key);
     $build   = $this->processValueTemplate($default);
 
     return $this->setKeyBuild($key, $build);
@@ -874,9 +1132,9 @@ class BuilderBase {
    * @param string $key
    *   The key name.
    */
-  protected function postBuildKey($key) {
+  protected function postKeyBuild($key) {
     $this->updateKeyBuildTemplateVars($key);
-    $this->postBuildKeyMethod($key);
+    $this->keyPostBuildMethod($key);
   }
 
   /**
@@ -893,37 +1151,17 @@ class BuilderBase {
   }
 
   /**
-   * Calls custom post key build method.
-   *
-   * @param string $key
-   *   The key name.
-   */
-  protected function postBuildKeyMethod($key) {
-    $uKey   = lowercase2camelcase($key);
-    $method = "postBuild$uKey" . "Key";
-    if (method_exists($this, $method)) {
-      $this->$method($uKey);
-    }
-  }
-
-  /**
    * Method called after the build has been set,
    * and before it is delivered.
    */
   protected function postBuild() {
-
   }
 
   /**
-   * Rebuilds a key value.
-   *
-   * @param string $key
-   *   The key name.
-   *
-   * @return mixed
+   * Method called after the rebuild has been set,
+   * and before it is delivered.
    */
-  protected function rebuildKey($key) {
-    return $this->buildKey($key);
+  protected function postReBuild() {
   }
 
   /**
@@ -932,47 +1170,85 @@ class BuilderBase {
    * @return array
    */
   protected function deliver() {
-    $this->isReady2DeliverEval();
-    if ($this->isReady2Deliver()) {
-      return $this->build;
-    }
-    else {
-      $this->deliverFailFix();
-
-      return $this->build;
-    }
+//    $hlp = $this->hlpr();
+//    if ($hlp->ifBuilderIsReady2Deliver()) {
+//      return $this->retrieveBuild();
+//    }
+//    else {
+//      $this->deliverFailFix();
+//
+//    }
+    return $this->retrieveBuild();
   }
 
   /**
-   * Evaluates if the build is ready to be delivered.
-   * Sets ready2Deliver.
+   * Returns the build, retrieved from key builders.
+   *
+   * @return mixed
    */
-  protected function isReady2DeliverEval() {
-    $eval = array();
-    foreach ($this->getKeyBuilders() as $key => $keyBuilder) {
-      $eval[] = $keyBuilder->isReady2Deliver();
-    }
-
-    if (in_array(FALSE, $eval, TRUE)) {
-      $this->setReady2Deliver(FALSE);
-    }
-    elseif (in_array(TRUE, $eval, TRUE)) {
-      $this->setReady2Deliver(TRUE);
-    }
+  protected function retrieveBuild() {
+    return $this->build;
   }
 
   /**
    * Calls fix methods when deliverEval has failed.
    */
-  protected function deliverFailFix() {
-    $failed = array();
-    foreach ($this->getKeyBuilders() as $key => $keyBuilder) {
-      if (!$keyBuilder->isReady2Deliver()) {
-        $failed[$key] = $keyBuilder;
-      }
-    }
-    foreach ($failed as $key => $keyBuilder) {
+  public function deliverFailFix() {
+    $hlp   = $this->hlpr();
+    $toFix = $hlp->builderGetKeysDeliverFail();
+//    $this->deliverFailFixExec();
+//    /**
+//     * @var string $key
+//     *   The key that failed to deliver.
+//     */
+//    foreach ($toFix as $key) {
+//      if (($keyBuilder = $hlp->keyGetBuilder($key)) !== NULL) {
+//        $keyBuilder->deliverFailFix();
+//      }
+//      else {
+//        $this->staticDeliverFailFix($key);
+//      }
+//    }
+  }
 
+  /**
+   * Method that allows to deliver a key build when failed.
+   *
+   * @param string $key
+   *   The key's name.
+   */
+  protected function staticDeliverFailFix($key) {
+    $method = $this->keyStaticDeliverFailFixMethod($key, FALSE);
+    if (isset($method)) {
+      $this->$method();
+      $this->deliveryFailIsFixed($key);
+    }
+    else {
+      $this->rebuildKey($key);
+      $this->deliveryFailIsFixed($key);
+    }
+  }
+
+  /**
+   * Deliver fail fix method.
+   * Any child class should have its own method.
+   */
+  protected function deliverFailFixExec() {
+  }
+
+  /**
+   * Sets as fixed the delivery for a given key.
+   *
+   * @param string $key
+   *   The key.
+   */
+  protected function deliveryFailIsFixed($key) {
+    $hlp = $this->hlpr();
+    if (($keyBuilder = $hlp->keyGetBuilder($key)) !== NULL) {
+      $this->setReady2Deliver(TRUE);
+    }
+    else {
+      $this->structure[$key]['rebuild'] = FALSE;
     }
   }
 
@@ -989,6 +1265,13 @@ class BuilderBase {
    */
   protected function validateBuild() {
     $this->unsetKeysEval();
+    $this->sortBuild();
+  }
+
+  /**
+   * Sorts the build keys.
+   */
+  protected function sortBuild() {
     uasort($this->build, 'drupal_sort_weight');
   }
 
@@ -1000,27 +1283,37 @@ class BuilderBase {
    * @param mixed  $build
    *   The build to validate.
    *
-   * @return bool
+   * @return mixed
    */
   protected function validateKeyBuild($key, $build) {
-    $type      = $this->getStructure($key)['type'];
-    $buildType = gettype($build);
+    $build = $this->validateKeyBuildType($key, $build);
+    $build = $this->keyVedMethod($key, $build);
 
-    if (!preg_match('/\|/', $type)) {
-      $cType     = lowercase2camelcase($type);
-      $vedMethod = 'validate' . $cType . 'Value';
-      if (method_exists($this, $vedMethod)) {
-        $build = $this->$vedMethod($build, $buildType);
-      }
+    return $build;
+  }
+
+  /**
+   * Validates the key build type.
+   *
+   * @param string $key
+   *   The key.
+   * @param mixed  $build
+   *   The build to validate.
+   *
+   * @return mixed
+   */
+  protected function validateKeyBuildType($key, $build) {
+    $hlp       = $this->hlpr();
+    $type      = $hlp->keyGetType($key, TRUE);
+    $buildType = gettype($build);
+    $vedMethod = 'validate' . ucfirst($type) . 'Value';
+    if ($type == 'mixed') {
+      return $this->validateMixedValue($build, $buildType, $hlp->keyGetType($key));
     }
     else {
-      $build = $this->validateMixedValue($build, $buildType, $type);
-    }
-
-    $cKey   = lowercase2camelcase($key);
-    $method = 'validate' . $cKey;
-    if (method_exists($this, $method)) {
-      $build = $this->$method($build);
+      if (method_exists($this, $vedMethod)) {
+        return $this->$vedMethod($build, $buildType);
+      }
     }
 
     return $build;
@@ -1153,9 +1446,8 @@ class BuilderBase {
    */
   protected function validateMixedValue($value, $valueType, $mixed = NULL) {
     if (isset($mixed)) {
-      $types     = explode('|', $mixed);
-      $matchType = in_array($valueType, $types);
-      if (!$matchType) {
+      $types = extract_types($mixed);
+      if (!in_array($valueType, $types)) {
         if ($this->isValueTemplate($value)) {
           $value = '';
         }
@@ -1172,8 +1464,8 @@ class BuilderBase {
   protected function unsetKeysEval() {
     $keys = array_flip(array_keys($this->build));
     $mod  = 0;
-    foreach ($this->build as $key => $value) {
-      $unset = $this->unsetKeyEval($key, $value);
+    foreach (array_keys($this->build) as $key) {
+      $unset = $this->unsetKeyEval($key);
       if ($unset) {
         $pos = $keys[$key] - $mod;
         array_splice($this->build, $pos, 1);
@@ -1183,17 +1475,22 @@ class BuilderBase {
   }
 
   /**
-   * @param $key
-   * @param $build
+   * Evaluates if a key should be unset from the build.
+   *
+   * @param string $key
+   *   The key's name.
+   *
    * @return bool
    */
-  protected function unsetKeyEval($key, $build) {
-    $proceed = isset($this->getStructure($key)['unset if']);
-    $eval    = FALSE;
-    if ($proceed) {
-      $unsetIf = $this->getStructure($key)['unset if'];
-      $negate  = preg_match('/^!\w+/', $unsetIf);
-      $unsetIf = $negate ? preg_replace('/^!/', '', $unsetIf) : $unsetIf;
+  protected function unsetKeyEval($key) {
+    $hlp   = $this->hlpr();
+    $build = $hlp->keyGetBuild($key);
+    $eval  = FALSE;
+    if (($unsetIf = $hlp->keyGetUnsetConditions($key)) !== NULL) {
+      $negate = preg_match('/^!\w+/', $unsetIf);
+      if ($negate) {
+        $unsetIf = preg_replace('/^!/', '', $unsetIf);
+      }
       switch ($unsetIf) {
         case 'false':
           $eval = $build == FALSE;

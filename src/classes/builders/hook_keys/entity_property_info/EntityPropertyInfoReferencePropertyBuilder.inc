@@ -48,9 +48,10 @@ class EntityPropertyInfoReferencePropertyBuilder extends EntityPropertyInfoPrope
   protected function autoSetNumericPropertyBuilder() {
     $numPropertyName = $this->propertyInfo['self_numeric_property'];
     $parentBuilder   = $this->getParentBuilder();
-    if ($parentBuilder->hasKeyBuilder($numPropertyName)) {
+    $hlp             = $parentBuilder->hlpr();
+    if ($hlp->keyHasBuilder($numPropertyName)) {
       /** @var EntityToolboxInfoReferenceNumericPropertyBuilder $numPropBuilder */
-      $numPropBuilder = $parentBuilder->getKeyBuilder($numPropertyName);
+      $numPropBuilder = $hlp->keyGetBuilder($numPropertyName);
       $this->__set('numeric_property_builder', $numPropBuilder);
       if (!$numPropBuilder->__isset('reference_property_builder')) {
         $numPropBuilder->setReferencePropertyBuilder($this);

@@ -93,7 +93,7 @@ class EntityToolboxInfoClassesClassBuilder extends EntityToolboxInfoKeyBuilder {
    * Auto sets classBaseClass.
    */
   protected function autoSetBaseClass() {
-    $baseClass = ucfirst(lowercase2camelcase($this->entityType));
+    $baseClass = str2camelcase($this->entityType);
     $this->__set('base_class', $baseClass);
   }
 

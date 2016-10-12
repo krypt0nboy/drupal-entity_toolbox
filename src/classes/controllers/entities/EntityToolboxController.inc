@@ -70,6 +70,13 @@ class EntityToolboxController extends EntityAPIController {
   }
 
   /**
+   * @return string
+   */
+  public function getEntityType() {
+    return $this->entityType;
+  }
+
+  /**
    * Create an entity.
    *
    * @param array $values
@@ -80,9 +87,77 @@ class EntityToolboxController extends EntityAPIController {
    */
   public function create(array $values = array()) {
     $values += $this->propertiesDefaultValues();
+    $values += array(
+      'is_new' => TRUE
+    );
     $entity = parent::create($values);
 
     return $entity;
+  }
+
+  /**
+   * Converts an entity 2 an array.
+   *
+   * @param object $entity
+   *   The entity to convert.
+   *
+   * @return array
+   */
+  public function entity2array($entity) {
+    $arrayEntity = array();
+    foreach (get_class_vars(get_class($entity)) as $var => $v) {
+      $arrayEntity[$var] = $entity->$var;
+    }
+
+    return $arrayEntity;
+  }
+
+  /** {{@inheritdoc}} */
+  protected function saveRevision($entity) {
+    // Convert the entity into an array as it might not have the same properties
+    // as the entity, it is just a raw structure.
+    $record = $this->entity2array($entity);
+    // File fields assumes we are using $entity->revision instead of
+    // $entity->is_new_revision, so we also support it and make sure it's set to
+    // the same value.
+    $entity->is_new_revision             = !empty($entity->is_new_revision) || !empty($entity->revision) || $entity->is_new;
+    $entity->revision                    = $entity->is_new_revision;
+    $entity->{$this->defaultRevisionKey} = !empty($entity->{$this->defaultRevisionKey}) || $entity->is_new;
+
+
+    // When saving a new revision, set any existing revision ID to NULL so as to
+    // ensure that a new revision will actually be created.
+    if ($entity->is_new_revision && isset($record[$this->revisionKey])) {
+      $record[$this->revisionKey] = NULL;
+    }
+
+    if ($entity->is_new_revision) {
+      drupal_write_record($this->revisionTable, $record);
+      $update_default_revision = $entity->{$this->defaultRevisionKey};
+    }
+    else {
+      drupal_write_record($this->revisionTable, $record, $this->revisionKey);
+      // @todo: Fix original entity to be of the same revision and check whether
+      // the default revision key has been set.
+      $update_default_revision = $entity->{$this->defaultRevisionKey} && $entity->{$this->revisionKey} != $entity->original->{$this->revisionKey};
+    }
+    // Make sure to update the new revision key for the entity.
+    $entity->{$this->revisionKey} = $record[$this->revisionKey];
+
+    // Mark this revision as the default one.
+    if ($update_default_revision) {
+      db_update($this->entityInfo['base table'])
+        ->fields(array($this->revisionKey => $record[$this->revisionKey]))
+        ->condition($this->idKey, $entity->{$this->idKey})
+        ->execute();
+    }
+
+    return $entity->is_new_revision ? SAVED_NEW : SAVED_UPDATED;
+  }
+
+  /** {{@inheritdoc}} */
+  protected function attachLoad(&$queried_entities, $revision_id = FALSE) {
+    parent::attachLoad($queried_entities, $revision_id);
   }
 
   /**
@@ -110,13 +185,16 @@ class EntityToolboxController extends EntityAPIController {
    * @return array
    */
   public function relationExtractInfo($entity, $name) {
-    $helper = $this->getPropsHelper();
+    $helper   = $this->getPropsHelper();
+    $id       = $entity->{$this->idKey};
+    $relTable = $helper->propGetRelationTable($name);
+    $field    = $helper->propGetSchemaFieldName($name, 'relation');
 
     return array(
-      'self_id_key' => $this->idKey,
-      'self_id'     => $entity->{$this->idKey},
-      'rel_table'   => $helper->propGetRelationTable($name),
-      'ref_rel_key' => $helper->propGetSchemaField($name, 'relation'),
+      $this->idKey,
+      $id,
+      $relTable,
+      $field,
     );
   }
 
@@ -193,14 +271,15 @@ class EntityToolboxController extends EntityAPIController {
     $table         = $helper->propGetRelationTable($name);
     $entityIdField = $this->idKey;
     $entityId      = $entity->{$this->idKey};
-    $refField      = $helper->propGetSchemaField($name, 'relation');
+    $refField      = $helper->propGetSchemaFieldName($name, 'relation');
     $inserted      = array();
     foreach ($add_ids as $add_id) {
       $inserted[] = db_insert($table)
         ->fields(
           array(
             $entityIdField => $entityId,
-            $refField      => $add_id
+            $refField      => $add_id,
+            'vid'          => $entity->vid
           )
         )
         ->execute();
@@ -262,12 +341,32 @@ class EntityToolboxController extends EntityAPIController {
    */
   public function propertiesDefaultValues() {
     $values = array();
+    $keys   = $this->entityInfo['entity keys'];
+    $flip   = array_flip($keys);
     $helper = $this->getPropsHelper();
     foreach ($this->properties as $name => $info) {
       $key = $helper->propHasKey($name);
       if ($key && $helper->propHasDefaultValue($name)) {
-        $key          = $this->keyGet($name);
-        $values[$key] = $this->propertyDefaultValue($name);
+        $key  = $this->keyGet($name);
+        if (!empty($keys[$key])) {
+          $key_ = $keys[$key];
+        }
+        else {
+          if (!empty($flip[$key])) {
+            $key_ = $flip[$key];
+          }
+          else {
+            if (!empty($keys[$name])) {
+              $key_ = $keys[$name];
+            }
+            else {
+              if (!empty($flip[$name])) {
+                $key_ = $flip[$name];
+              }
+            }
+          }
+        }
+        $values[$key_] = $this->propertyDefaultValue($name);
       }
     }
 
@@ -279,11 +378,10 @@ class EntityToolboxController extends EntityAPIController {
    * @return mixed
    */
   public function keyGet($property) {
-    $helper     = $this->getPropsHelper();
-    $entityKeys = $this->entityInfo['entity keys'];
-    $key        = $helper->propGetKey($property);
+    $helper = $this->getPropsHelper();
+    $key    = $helper->propGetKey($property);
 
-    return $entityKeys[$key];
+    return $key;
   }
 
   /**
@@ -535,6 +633,39 @@ class EntityToolboxController extends EntityAPIController {
    * Build breadcrumbs.
    */
   public function buildBreadCrumbs() {
+  }
+
+  /**
+   * Overriding the buildContent function to add entity specific fields.
+   *
+   * @param object $entity
+   *   Entity.
+   * @param string $view_mode
+   *   View mode.
+   * @param string $langcode
+   *   Language code.
+   * @param array  $content
+   *   Content.
+   *
+   * @return array
+   *   The content built.
+   */
+  public function buildContent($entity, $view_mode = 'full', $langcode = NULL, $content = array()) {
+    $content = parent::buildContent($entity, $view_mode, $langcode, $content);
+//    $wrapper = entity_metadata_wrapper($this->entityType, $entity);
+//    foreach ($wrapper as $name => $property) {
+//      $info = $property->info();
+//      $content[$name] = array(
+//        '#label_hidden'   => FALSE,
+//        '#label'          => $info['label'],
+//        '#entity_wrapped' => $wrapper,
+//        '#theme'          => 'entity_property',
+//        '#property_name'  => $name,
+//        '#entity_type'    => $this->entityType,
+//      );
+//    }
+
+    return $content;
   }
 
 }

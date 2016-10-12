@@ -27,7 +27,12 @@ class EntityToolboxInfoPropertyCallbacksBuilder extends EntityToolboxInfoPropert
       return DEFAULT_MULTI_VALUE_GETTER;
     }
     else {
-      return $defaultBuild;
+      if (is_template_value($defaultBuild) || is_null($defaultBuild)) {
+        return 'entity_property_verbatim_get';
+      }
+      else {
+        return $defaultBuild;
+      }
     }
   }
 
@@ -42,7 +47,12 @@ class EntityToolboxInfoPropertyCallbacksBuilder extends EntityToolboxInfoPropert
       return DEFAULT_MULTI_VALUE_SETTER;
     }
     else {
-      return $defaultBuild;
+      if (is_template_value($defaultBuild) || is_null($defaultBuild)) {
+        return 'entity_property_verbatim_set';
+      }
+      else {
+        return $defaultBuild;
+      }
     }
   }
 }

@@ -95,6 +95,38 @@ class ToolboxPropertiesHelper extends EntityToolboxHelperBase {
   }
 
   /**
+   * Returns the required properties.
+   *
+   * @return array
+   */
+  public function requiredPropertiesGet() {
+    $props = $this->alias();
+
+    return array_keys(array_filter_by_value($props, TRUE, 'required'));
+  }
+
+  /**
+   * Returns the exposed properties for a given form type.
+   *
+   * @param string $type
+   *   The form type ("edit", "delete", etc...).
+   *
+   * @return array
+   */
+  public function entityFormExposedPropertiesGet($type) {
+    $props  = $this->alias();
+    $expose = array();
+    foreach ($props as $prop => $info) {
+      $formParams = $info['forms'][$type];
+      if ($formParams['expose']) {
+        $expose[$prop] = $info;
+      }
+    }
+
+    return $expose;
+  }
+
+  /**
    * Returns a property.
    *
    * @param string $name
@@ -135,7 +167,7 @@ class ToolboxPropertiesHelper extends EntityToolboxHelperBase {
   public function propIsMulti($name) {
     $prop = $this->propGet($name);
 
-    return $prop['multiple'];
+    return (bool) $prop['multiple'];
   }
 
   /**
@@ -149,7 +181,7 @@ class ToolboxPropertiesHelper extends EntityToolboxHelperBase {
   public function propIsSerialized($name) {
     $prop = $this->propGet($name);
 
-    return $prop['serialize'];
+    return (bool) $prop['serialize'];
   }
 
   /**
@@ -234,15 +266,28 @@ class ToolboxPropertiesHelper extends EntityToolboxHelperBase {
    * @return bool
    */
   public function propIsParent($name) {
-    $prop     = $this->propGet($name);
-    $isParent = !empty($prop['is_parent']) ? $prop['is_parent'] : FALSE;
-    if (!$isParent) {
-      $type = $this->propGetType($name);
+    $type = $this->propGetType($name);
 
-      return ($type == 'parent') || ($type = 'self_parent');
+    return $type == 'parent' || $type == 'self_parent';
+  }
+
+  /**
+   * Indicates if a property is a self parent.
+   *
+   * @param string $name
+   *   The property name.
+   *
+   * @return bool
+   */
+  public function propIsSelfParent($name) {
+    if ($this->propIsParent($name)) {
+      $ref = $this->propGetReference($name);
+
+      return $ref ==  $this->getDataHolder()->getEntityType();
     }
-
-    return $isParent;
+    else {
+      return FALSE;
+    }
   }
 
   /**
@@ -497,7 +542,9 @@ class ToolboxPropertiesHelper extends EntityToolboxHelperBase {
    * @return null|string
    */
   public function propGetSchemaField($name, $schemaType) {
+    $prop = $this->propGet($name);
 
+    return $prop['schemas_fields'][$schemaType];
   }
 
   /**
@@ -551,6 +598,12 @@ class ToolboxPropertiesHelper extends EntityToolboxHelperBase {
     }
   }
 
+  public function propGetValueParam($name, $param) {
+    if (($prop = $this->propGet($name)) !== NULL) {
+      return $prop['value'][$param];
+    }
+  }
+
   /**
    * Returns the property default static value.
    *
@@ -575,13 +628,9 @@ class ToolboxPropertiesHelper extends EntityToolboxHelperBase {
       return $this->idProperty;
     }
     else {
-      $props  = $this->alias();
-      $keys   = array_keys($props);
-      $types  = array_column($props, 'type');
-      $search = array_search('entity_id', $types);
-      if ($search !== FALSE) {
-        return $keys[$search];
-      }
+      $props = $this->alias();
+
+      return reset(array_filter_by_value($props, 'entity_id', 'type'));
     }
   }
 

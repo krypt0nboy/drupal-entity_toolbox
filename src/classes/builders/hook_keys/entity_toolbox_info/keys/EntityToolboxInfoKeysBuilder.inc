@@ -20,17 +20,37 @@ class EntityToolboxInfoKeysBuilder extends EntityToolboxInfoKeyBuilder {
   public function genDynamicStructure() {
     $structure = array();
     //@todo add check method to ensure key has been built
-    $phase      = $this->getPhase();
-    $buildPhase = self::PHZ__BUILD;
-    if ($phase == $buildPhase) {
-      $hookBuilder = $this->getHookBuilder();
-      $properties  = $hookBuilder->getBuild('properties');
+    $hookBuilder = $this->getHookBuilder();
+    $hlp         = $hookBuilder->hlpr();
+    if ($hlp->keyHasBuild('properties')) {
+      $properties = $hookBuilder->getBuild('properties');
       foreach ($properties as $property => $info) {
+        $schema_field_name = $info['schemas_fields_name']['base'];
         if (!empty($info['key'])) {
-          $structure[$info['key']] = array(
-            'type'    => 'string',
-            'default' => $property,
-          );
+          if (!empty($info['reference'])) {
+            $structure[$property] = array(
+              'type'    => 'string',
+              'default' => $schema_field_name,
+            );
+          }
+          else {
+            $structure[$info['key']] = array(
+              'type'    => 'string',
+              'default' => $schema_field_name,
+            );
+          }
+//          if (($info['type'] == 'bundle') || ($info['type'] == 'entity_id')) {
+//            $structure[$info['key']] = array(
+//              'type'    => 'string',
+//              'default' => $schema_field_name,
+//            );
+//          }
+//          else {
+//            $structure[$property] = array(
+//              'type'    => 'string',
+//              'default' => $info['key'],
+//            );
+//          }
         }
       }
     }

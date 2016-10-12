@@ -25,44 +25,31 @@ class EntityToolboxInfoOperationsBuilder extends EntityToolboxInfoKeyBuilder {
         'add'    => array(
           'handler'   => 'EntityToolboxOperationsAdd',
           'provision' => array(
-            'menu' => TRUE
+            'menu'        => TRUE,
+            'views field' => TRUE,
           )
         ),
         'edit'   => array(
           'handler'   => 'EntityToolboxOperationsEdit',
           'provision' => array(
-            'menu'        => array(
-              'default' => TRUE,
-            ),
+            'menu'        => TRUE,
             'views field' => TRUE,
           ),
         ),
         'view'   => array(
-          'handler'   => 'EntityToolboxOperationsEdit',
+          'handler'   => 'EntityToolboxOperationsView',
           'provision' => array(
-            'menu'        => array(
-              'default' => TRUE,
-            ),
+            'menu'        => TRUE,
             'views field' => TRUE,
           ),
         ),
-        'delete' => array(
-          'handler'   => 'EntityToolboxOperationsDelete',
-          'provision' => array(
-            'menu'        => array(
-              'default' => TRUE,
-            ),
-            'views field' => TRUE,
-          ),
-        ),
-        'clone'  => array(
-          'handler'   => 'EntityToolboxOperationsClone',
-          'provision' => array(
-            'menu' => array(
-              'default' => TRUE,
-            ),
-          ),
-        ),
+//        'delete' => array(
+//          'handler'   => 'EntityOperationsOperationEntityDelete',
+//          'provision' => array(
+//            'menu'        => TRUE,
+//            'views field' => TRUE,
+//          ),
+//        ),
       )
     ), $args);
     parent::__construct($args);
@@ -118,6 +105,7 @@ class EntityToolboxInfoOperationsBuilder extends EntityToolboxInfoKeyBuilder {
     $hookBuilder   = $this->getHookBuilder();
     $rawOperations = $hookBuilder
       ->getRawData('operations');
+    $rawOperations = !empty($rawOperations) ? $rawOperations : array();
     foreach ($rawOperations as $operationName => $operationInfo) {
       $structure[$operationName]          = array(
         'type'   => 'array',

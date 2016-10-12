@@ -146,9 +146,9 @@ class EntityGroup {
     $this->__set('entity_types', $this->info['entity_types']);
     $controller = entity_group_get_controller($this->name);
     $this->__set('fieldable_entity_types', $controller->extractFieldableEntityTypes($this));
-    $this->__set('fieldable_entity_types', $controller->extractNonFieldableEntityTypes($this));
-    $this->__set('hierarchy', $controller->buildHierarchy($this));
-    $this->__set('entities', $controller->loadEntities($this));
+    $this->__set('non_fieldable_entity_types', $controller->extractNonFieldableEntityTypes($this));
+//    $this->__set('hierarchy', $controller->buildHierarchy($this));
+//    $this->__set('entities', $controller->loadEntities($this));
   }
 
   /**

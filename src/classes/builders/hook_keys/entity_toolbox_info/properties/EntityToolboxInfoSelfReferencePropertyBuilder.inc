@@ -5,9 +5,29 @@
  */
 class EntityToolboxInfoSelfReferencePropertyBuilder extends EntityToolboxInfoReferencePropertyBuilder {
   /** {{@inheritdoc}} */
+  public function __construct(array $args = array()) {
+    parent::__construct($args);
+  }
+
+  /** {{@inheritdoc}} */
   protected function constructSet($args) {
     parent::constructSet($args);
-    $this->setRequiresRebuild(TRUE);
+  }
+
+  /** {{@inheritdoc}} */
+  public function requireRebuild() {
+    parent::requireRebuild();
+    /** @var EntityToolboxInfoBuilder $hookBuilder */
+    $hookBuilder  = $this->getHookBuilder();
+    $keys2Rebuild = array(
+      'tables',
+      'keys',
+      'children_inherit',
+      'entity_info'
+    );
+    foreach ($keys2Rebuild as $key) {
+      $hookBuilder->keyRequiresRebuild($key);
+    }
   }
 
   /** {{@inheritdoc}} */
@@ -20,6 +40,15 @@ class EntityToolboxInfoSelfReferencePropertyBuilder extends EntityToolboxInfoRef
   /** {{@inheritdoc}} */
   public function setReferenceInfo($referenceInfo) {
     parent::setReferenceInfo($referenceInfo);
-    $this->setRequiresRebuild(FALSE);
+  }
+
+  /**
+   * Builds "self_numeric_value".
+   */
+  protected function buildSelfNumericProperty() {
+    $idKey = concat($this->entityType, 'id');
+    $idKey = concat('parent', $idKey);
+
+    return $idKey;
   }
 }

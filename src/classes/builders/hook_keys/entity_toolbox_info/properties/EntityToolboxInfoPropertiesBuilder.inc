@@ -203,13 +203,10 @@ class EntityToolboxInfoPropertiesBuilder extends EntityToolboxInfoKeyBuilder {
   }
 
   /** {{@inheritdoc}} */
-  public function build() {
+  protected function buildDefault() {
     foreach ($this->getStructure() as $property => $params) {
       $this->setKeyBuild($property, $this->buildProperty($property));
     }
-    $this->validateBuild();
-
-    return $this->deliver();
   }
 
   /**
@@ -222,6 +219,18 @@ class EntityToolboxInfoPropertiesBuilder extends EntityToolboxInfoKeyBuilder {
    */
   protected function buildProperty($property) {
     return $this->getKeyBuilder($property)->build();
+  }
+
+  /**
+   * Builds a property.
+   *
+   * @param string $property
+   *   The property name.
+   *
+   * @return array
+   */
+  protected function reBuildProperty($property) {
+    return $this->getKeyBuilder($property)->rebuild();
   }
 
   /**

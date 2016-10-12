@@ -31,4 +31,10 @@ class EntityToolboxInfoPropertyValueBuilder extends EntityToolboxInfoPropertyDep
    */
   protected function buildForbid() {
   }
+
+  protected function buildSource() {
+    if (array_key_exists('property_default_value_source', $this->getTemplateVars())) {
+      return $this->getTemplateVars('property_default_value_source');
+    }
+  }
 }

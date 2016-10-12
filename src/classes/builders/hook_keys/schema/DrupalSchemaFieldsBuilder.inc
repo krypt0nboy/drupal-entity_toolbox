@@ -231,6 +231,7 @@ class DrupalSchemaFieldsBuilder extends SchemaKeyBuilder {
     $args       = array(
       'property_name' => $propertyName,
       'property_type' => $this->properties[$propertyName]['type'],
+      'schema_type'   => $schemaType
     );
 
     return $args;

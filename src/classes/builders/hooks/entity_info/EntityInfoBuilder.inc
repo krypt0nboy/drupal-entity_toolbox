@@ -43,4 +43,13 @@ class EntityInfoBuilder extends EntityToolboxDependentHookBuilder {
   protected function buildOperationsUi() {
     return $this->getKeyBuilder('operations ui')->build();
   }
+
+  public function vedKeyRevisionTable($preSet) {
+    if (is_template_value($preSet)) {
+      return NULL;
+    }
+    else {
+      return $preSet;
+    }
+  }
 }

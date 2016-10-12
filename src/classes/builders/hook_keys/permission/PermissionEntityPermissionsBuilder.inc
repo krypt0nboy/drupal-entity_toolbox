@@ -1,10 +1,17 @@
 <?php
 
+require_once 'PermissionKeyBuilder.inc';
+
 /**
  * Class PermissionEntityPermissionsBuilder
  */
 class PermissionEntityPermissionsBuilder extends PermissionKeyBuilder {
-  use EntityDependentTraits, EntityDependentBuilderTraits, EntityToolboxDependentTraits, EntityToolboxDependentBuilderTraits;
+
+  use
+    EntityDependentTraits,
+    EntityDependentBuilderTraits,
+    EntityToolboxDependentTraits,
+    EntityToolboxDependentBuilderTraits;
 
   /** {{@inheritdoc}} */
   public function build() {
@@ -17,9 +24,11 @@ class PermissionEntityPermissionsBuilder extends PermissionKeyBuilder {
     return $this->build;
   }
 
-  protected function initTemplateVars() {
-    $flattened = $this->extractToolboxInfoTemplateVars();
-    $this->templateVars += $flattened;
+  /** {{@inheritdoc}} */
+  protected function initTemplateVars(array $vars = array()) {
+    $vars += $this->extractToolboxInfoTemplateVars();
+
+    return parent::initTemplateVars($vars);
   }
 
   /** {{@inheritdoc}} */
@@ -40,9 +49,8 @@ class PermissionEntityPermissionsBuilder extends PermissionKeyBuilder {
         'operation_info' => $operationInfo,
       );
       if ($this->fieldable) {
-        $function                            = $this->processValueTemplate('%toolbox_info_entity_type%_get_types');
+        $function = $this->processValueTemplate('%toolbox_info_entity_type%_get_types');
         foreach ($function() as $type) {
-          echo '';
         }
       }
     }

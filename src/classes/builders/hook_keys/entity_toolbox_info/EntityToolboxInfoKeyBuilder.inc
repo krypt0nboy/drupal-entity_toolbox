@@ -26,8 +26,8 @@ class EntityToolboxInfoKeyBuilder extends EntityDependentHookKeyBuilder {
   }
 
   /** {{@inheritdoc}} */
-  protected function postBuildKey($key) {
-    parent::postBuildKeyMethod($key);
+  protected function postKeyBuild($key) {
+    parent::keyPostBuildMethod($key);
   }
 
 }

@@ -1,9 +1,11 @@
 <?php
 
+require_once 'EntityOperationInfoKeyBuilder.inc';
+
 /**
  * Class EntityOperationInfoKeyOperationBuilder
  */
-class EntityOperationInfoKeyOperationBuilder extends EntityOperationInfoKeyBuilder {
+class EntityOperationInfoOperationBuilder extends EntityOperationInfoKeyBuilder {
   /**
    * @var string $operationType
    */
@@ -17,10 +19,7 @@ class EntityOperationInfoKeyOperationBuilder extends EntityOperationInfoKeyBuild
   public function __construct(array $args = array()) {
     $args = $this->mergeConstructArgs(
       array(
-        'model_class'          => 'EntityOperationInfoOperationModel',
-        'key_builders_classes' => array(
-          'provision' => 'EntityOperationInfoOperationProvisionsBuilder'
-        )
+        'model_class' => 'EntityOperationInfoOperationModel',
       ),
       $args
     );
@@ -56,9 +55,16 @@ class EntityOperationInfoKeyOperationBuilder extends EntityOperationInfoKeyBuild
   }
 
   /**
+   * @return string
+   */
+  protected function buildHandler() {
+    return $this->toolboxInfo['operations'][$this->operationName]['handler'];
+  }
+
+  /**
    * @return array
    */
   protected function buildProvision() {
-    return $this->getKeyBuilder('provision')->build();
+    return $this->toolboxInfo['operations'][$this->operationName]['provision'];
   }
 }

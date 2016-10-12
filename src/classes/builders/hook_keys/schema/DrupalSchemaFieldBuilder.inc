@@ -38,7 +38,7 @@ class DrupalSchemaFieldBuilder extends SchemaKeyBuilder {
     $this->fieldName = $fieldName;
   }
 
-  protected function validateDefault($build) {
+  protected function vedKeyDefault($build) {
     if ($this->propertyType == 'entity_id') {
       $this->structure['default']['unset if'] = 0;
 
@@ -56,7 +56,7 @@ class DrupalSchemaFieldBuilder extends SchemaKeyBuilder {
     }
   }
 
-  protected function validateSerialize($build) {
+  protected function vedKeySerialize($build) {
     if ($this->isValueTemplate($build) || ($build == FALSE)) {
       return 0;
     }
@@ -65,7 +65,7 @@ class DrupalSchemaFieldBuilder extends SchemaKeyBuilder {
     }
   }
 
-  protected function validateSize($build) {
+  protected function vedKeySize($build) {
     if ($this->isValueTemplate($build) || ($build == 0)) {
       return 0;
     }
@@ -74,7 +74,7 @@ class DrupalSchemaFieldBuilder extends SchemaKeyBuilder {
     }
   }
 
-  protected function validateScale($build) {
+  protected function vedKeyScale($build) {
     if ($this->isValueTemplate($build) || ($build == 0)) {
       return 0;
     }
@@ -83,7 +83,7 @@ class DrupalSchemaFieldBuilder extends SchemaKeyBuilder {
     }
   }
 
-  protected function validatePrecision($build) {
+  protected function vedKeyPrecision($build) {
     if ($this->isValueTemplate($build) || ($build == 0)) {
       return 0;
     }
@@ -92,7 +92,7 @@ class DrupalSchemaFieldBuilder extends SchemaKeyBuilder {
     }
   }
 
-  protected function validateBinary($build) {
+  protected function vedKeyBinary($build) {
     if ($this->isValueTemplate($build) || ($build == 0)) {
       return FALSE;
     }

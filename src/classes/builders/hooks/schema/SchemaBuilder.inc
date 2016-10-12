@@ -150,7 +150,7 @@ class SchemaBuilder extends EntityToolboxDependentHookBuilder {
    * @return string
    */
   protected function guessSchemaBuilderClass($schemaType) {
-    return class_exists(lowercase2camelcase($schemaType) . 'DrupalSchemaBuilder') ? lowercase2camelcase($schemaType) . 'DrupalSchemaBuilder' : 'DrupalSchemaBuilder';
+    return class_exists(str2camelcase($schemaType) . 'DrupalSchemaBuilder') ? str2camelcase($schemaType) . 'DrupalSchemaBuilder' : 'DrupalSchemaBuilder';
   }
 
   /**

@@ -169,7 +169,10 @@ class FactoryBase {
    */
   public function getInstance() {
     $this->parseClassModel();
-    $class        = $this->getParsedModelClass();
+    $class = $this->getParsedModelClass();
+    if (preg_match('/^EntityOperationInfoBuilder/', $class)) {
+      require_once ENTITY_TOOLBOX_PATH . '/src/classes/builders/hooks/entity_operation_info/EntityOperationInfoBuilder.inc';
+    }
     $class        = class_exists($class) ? $class : $this->baseClass;
     $instanceArgs = $this->getInstanceArgs();
 

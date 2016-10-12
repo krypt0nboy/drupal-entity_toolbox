@@ -11,12 +11,12 @@ class EntityToolboxInfoPropertyBuilder extends EntityToolboxInfoPropertyDependen
       array(
         'model_class'          => 'EntityToolboxInfoPropertyModel',
         'key_builders_classes' => array(
-          'callbacks'             => 'EntityToolboxInfoPropertyCallbacksBuilder',
-          'schemas_fields_name'   => 'EntityToolboxInfoPropertySchemasFieldsNameBuilder',
-          'schemas_fields'        => 'EntityToolboxInfoPropertySchemasFieldsBuilder',
-          'value'                 => 'EntityToolboxInfoPropertyValueBuilder',
-          'forms'                 => 'EntityToolboxInfoPropertyFormsBuilder',
-          'tables'                => 'EntityToolboxInfoPropertyTablesBuilder',
+          'callbacks'           => 'EntityToolboxInfoPropertyCallbacksBuilder',
+          'schemas_fields_name' => 'EntityToolboxInfoPropertySchemasFieldsNameBuilder',
+          'schemas_fields'      => 'EntityToolboxInfoPropertySchemasFieldsBuilder',
+          'value'               => 'EntityToolboxInfoPropertyValueBuilder',
+          'forms'               => 'EntityToolboxInfoPropertyFormsBuilder',
+          'tables'              => 'EntityToolboxInfoPropertyTablesBuilder',
         )
       ),
       $args
@@ -185,24 +185,19 @@ class EntityToolboxInfoPropertyBuilder extends EntityToolboxInfoPropertyDependen
   }
 
   /**
-   * @param $preValidatedBuild
+   * @param $build
    * @return mixed
    */
-  protected function validateSchemasFieldsName($preValidatedBuild) {
-    return $preValidatedBuild;
+  protected function vedSchemasFieldsName($build) {
+    return $build;
   }
 
   /**
    * @param $build
    * @return null
    */
-  protected function validateReference($build) {
-    if ($this->isValueTemplate($build)) {
-      return NULL;
-    }
-    else {
-      return $build;
-    }
+  protected function vedKeyReference($build) {
+    return $this->isValueTemplate($build) ? NULL : $build;
   }
 
   /**

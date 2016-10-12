@@ -1,5 +1,7 @@
 <?php
 
+require_once ENTITY_TOOLBOX_PATH . '/src/classes/builders/hook_keys/entity_operation_info/EntityOperationInfoOperationBuilder.inc';
+
 /**
  * Class EntityOperationInfoBuilder
  */
@@ -14,7 +16,7 @@ class EntityOperationInfoBuilder extends EntityToolboxDependentHookBuilder {
   /** {{@inheritdoc}} */
   public function __construct(array $args = array()) {
     $args = $this->mergeConstructArgs(array(
-      'hook' => 'entity_operations_info',
+      'hook' => 'entity_operation_info',
     ), $args);
     parent::__construct($args);
   }

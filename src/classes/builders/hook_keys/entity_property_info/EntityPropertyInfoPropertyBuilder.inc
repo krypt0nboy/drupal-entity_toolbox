@@ -87,12 +87,18 @@ class EntityPropertyInfoPropertyBuilder extends EntityPropertyInfoKeyBuilder {
    * Builds the "getter callback".
    */
   protected function buildGetterCallback() {
+    if (empty($this->build['getter callback'])) {
+      return 'entity_property_verbatim_get';
+    }
   }
 
   /**
    * Builds the "setter callback".
    */
   protected function buildSetterCallback() {
+    if (empty($this->build['setter callback'])) {
+      return 'entity_property_verbatim_set';
+    }
   }
 
   /**
